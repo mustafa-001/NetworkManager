@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">NetworkUsage</string>
+    <string name="prefence_file_key">com.networkmanager.SHARED_PREFERENCE_FILE</string>
+</resources>
