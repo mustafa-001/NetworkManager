@@ -152,24 +152,28 @@ class MainActivity : ComponentActivity() {
                                 apply()
                             }
                         }) {
-                            if (usageListViewModel.networkType == UsageDetailsManager.NetworkType.WIFI) {
+                            if (usageListViewModel.networkType ==
+                                UsageDetailsManager.NetworkType.WIFI
+                            ) {
                                 Icon(
                                     painter = painterResource(id = R.drawable.ic_baseline_wifi_24),
                                     contentDescription = "Wifi"
                                 )
                             } else {
                                 Icon(
-                                    painter = painterResource(id = R.drawable.ic_twotone_signal_cellular_alt_24),
+                                    painter = painterResource(
+                                        id = R.drawable.ic_twotone_signal_cellular_alt_24
+                                    ),
                                     contentDescription = "Cellular"
                                 )
                             }
                         }
 
-                        var showSelectTimeFrame by remember {
-                            mutableStateOf(false)
-                        }
+                        var showSelectTimeFrame by remember { mutableStateOf(false) }
+                        var dropdownExpanded by remember { mutableStateOf(false) }
+
                         IconButton(onClick = {
-                            showSelectTimeFrame = !showSelectTimeFrame
+                            dropdownExpanded = !dropdownExpanded
                         }) {
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_baseline_access_time_24),
@@ -177,22 +181,13 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         if (showSelectTimeFrame) {
-                            TimeFrameSelector(activity = this@MainActivity,
+                            TimeFrameSelector(
+                                activity = this@MainActivity,
                                 usageListViewModel,
                                 mode = timeFrameMode,
                                 onDismissRequest = { showSelectTimeFrame = false },
-                                onSubmitRequest = { mode, time ->
-                                    if (mode == TimeFrameMode.LAST_WEEK) {
-                                        usageListViewModel.selectLastWeek()
-                                    } else if (mode == TimeFrameMode.THIS_MONTH) {
-                                        usageListViewModel.selectThisMOnth()
-                                    } else if (mode == TimeFrameMode.LAST_30_DAYS) {
-                                        usageListViewModel.selectLast30Days()
-                                    } else {
-                                        usageListViewModel.timeFrame = time
-                                    }
-
-                                    timeFrameMode = mode
+                                onSubmitRequest = { time ->
+                                    usageListViewModel.timeFrame = time
                                     with(
                                         this@MainActivity.getSharedPreferences(
                                             this@MainActivity.getString(R.string.prefence_file_key),
@@ -207,10 +202,41 @@ class MainActivity : ComponentActivity() {
                                             "end_time",
                                             time.second.toEpochSecond(ZoneOffset.UTC)
                                         )
-                                        putString("mode", mode.name)
                                         apply()
                                     }
                                 })
+                        }
+
+
+                        DropdownMenu(
+                            expanded = dropdownExpanded,
+                            onDismissRequest = { dropdownExpanded = false }) {
+                            DropdownMenuItem(onClick = {
+                                onSelectTimeFrameMode(TimeFrameMode.LAST_WEEK)
+                                dropdownExpanded = false
+                            }) {
+                                Text("Last Week")
+                            }
+                            DropdownMenuItem(onClick = {
+                                onSelectTimeFrameMode(TimeFrameMode.LAST_30_DAYS)
+                                dropdownExpanded = false
+                            }) {
+                                Text("Lat 30 Days")
+                            }
+                            DropdownMenuItem(onClick = {
+                                onSelectTimeFrameMode(TimeFrameMode.THIS_MONTH)
+                                dropdownExpanded = false
+                            }) {
+                                Text("This Month")
+                            }
+                            DropdownMenuItem(onClick = {
+                                showSelectTimeFrame = true
+                                dropdownExpanded = false
+                                onSelectTimeFrameMode(TimeFrameMode.CUSTOM)
+                            }) {
+                                Text("Custom")
+                            }
+
                         }
                     }
                 },
@@ -234,7 +260,7 @@ class MainActivity : ComponentActivity() {
                                         activity = this@MainActivity,
                                         usageListViewModel,
                                         mode = TimeFrameMode.LAST_30_DAYS,
-                                        {}, { _, _ -> })
+                                        {}, { _ -> })
                                 }
                                 composable(
                                     "details/{bucket}",
@@ -266,7 +292,7 @@ class MainActivity : ComponentActivity() {
                 usageListViewModel,
                 TimeFrameMode.LAST_30_DAYS,
                 {},
-                { _, _ -> })
+                { _ -> })
         }
     }
 
@@ -340,6 +366,26 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+    }
+
+    private fun onSelectTimeFrameMode(mode: TimeFrameMode) {
+        if (mode == TimeFrameMode.LAST_WEEK) {
+            usageListViewModel.selectLastWeek()
+        } else if (mode == TimeFrameMode.THIS_MONTH) {
+            usageListViewModel.selectThisMOnth()
+        } else if (mode == TimeFrameMode.LAST_30_DAYS) {
+            usageListViewModel.selectLast30Days()
+        }
+
+            with(
+                this@MainActivity.getSharedPreferences(
+                    this@MainActivity.getString(R.string.prefence_file_key),
+                    Context.MODE_PRIVATE
+                ).edit()
+            ) {
+                putString("mode", mode.name)
+                apply()
+        }
     }
 
     @Composable

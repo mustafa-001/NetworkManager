@@ -33,7 +33,7 @@ fun TimeFrameSelector(
     viewModel: UsageListViewModel,
     mode: TimeFrameMode,
     onDismissRequest: () -> Unit,
-    onSubmitRequest: (TimeFrameMode, Pair<LocalDateTime, LocalDateTime>) -> Unit
+    onSubmitRequest: (Pair<LocalDateTime, LocalDateTime>) -> Unit
 ) {
     Dialog(onDismissRequest = onDismissRequest) {
         var startTime = remember {
@@ -42,7 +42,6 @@ fun TimeFrameSelector(
         var endTime = remember {
             viewModel.timeFrame.second
         }
-        var selectedMode by remember { mutableStateOf(mode) }
         val scrollState = rememberScrollState()
 //        var customSelectionVisibility by remember { mutableStateOf(mode == TimeFrameMode.CUSTOM) }
         Card(
@@ -52,54 +51,19 @@ fun TimeFrameSelector(
             Column(modifier = Modifier
                 .height(400.dp)
                 .padding(10.dp)) {
-                Row(modifier = Modifier.horizontalScroll(scrollState) ){
-                    val lastWeekButtonColor = if (selectedMode == TimeFrameMode.LAST_WEEK) {Color.Red} else {Color.Unspecified}
-                    val last30DaysButtonColor = if (selectedMode == TimeFrameMode.LAST_30_DAYS) {Color.Red} else {Color.Unspecified}
-                    val thisMonthButtonColor = if (selectedMode == TimeFrameMode.THIS_MONTH) {Color.Red} else {Color.Unspecified}
-                    val customButtonColor = if (selectedMode == TimeFrameMode.CUSTOM) {Color.Red} else {Color.Unspecified}
-                    Button(onClick = {
-                        selectedMode = TimeFrameMode.LAST_WEEK
-                        onSubmitRequest(selectedMode, Pair(startTime, endTime))
-                        onDismissRequest()
-                    }, Modifier.background(lastWeekButtonColor)) {
-                        Text(text = "Last week")
-                    }
-                    Button(onClick = {
-                        selectedMode = TimeFrameMode.LAST_30_DAYS
-                        onSubmitRequest(selectedMode, Pair(startTime, endTime))
-                        onDismissRequest()
-                    }, Modifier.background(last30DaysButtonColor)) {
-                        Text(text = "Last 30 days")
-                    }
-                    Button(onClick = {
-                        selectedMode = TimeFrameMode.THIS_MONTH
-                        onSubmitRequest(selectedMode, Pair(startTime, endTime))
-                        onDismissRequest()
-                    }, Modifier.background(thisMonthButtonColor))
-                    {
-                        Text(text = "This month")
-                    }
-                    Button(onClick = {
-                        selectedMode = TimeFrameMode.CUSTOM
-                    }, Modifier.background(customButtonColor)) {
-                        Text(text = "Custom")
-                    }
-                }
-                if (selectedMode == TimeFrameMode.CUSTOM) {
                     TimeSelector(
                         label = "Start",
-                        time = viewModel.timeFrame.first,
+                        time = startTime,
                         activity = activity,
                         visibility = true,
                     ) { time -> startTime = time }
                     TimeSelector(
                         label = "End",
-                        time = viewModel.timeFrame.second,
+                        time = endTime,
                         activity = activity,
                         visibility = true,
                     )
                     { time -> endTime = time }
-                }
                 Row(modifier = Modifier.offset(0.dp, (30).dp), horizontalArrangement = Arrangement.SpaceEvenly) {
                     Button(modifier = Modifier.weight(1f), onClick = { onDismissRequest() }) {
                         Text(text = "Close")
@@ -107,17 +71,7 @@ fun TimeFrameSelector(
                     Spacer(Modifier.width(10.dp))
                     Button(modifier = Modifier.weight(1f), onClick = {
                         onDismissRequest()
-//                        with(
-//                            activity.getSharedPreferences(
-//                                activity.getString(R.string.prefence_file_key), Context.MODE_PRIVATE
-//                            ).edit()
-//                        ) {
-//                            putLong("start_time", startTime.toEpochSecond(ZoneOffset.UTC))
-//                            putLong("end_time", endTime.toEpochSecond(ZoneOffset.UTC))
-//                            putInt("mode", selectedMode.ordinal)
-//                            apply()
-//                        }
-                        onSubmitRequest(selectedMode, Pair(startTime, endTime))
+                        onSubmitRequest(Pair(startTime, endTime))
                     }) {
                         Text(text = "Submit")
                     }
