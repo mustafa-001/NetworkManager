@@ -17,15 +17,22 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.*
+import androidx.compose.material.icons.Icons
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
+import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
@@ -39,6 +46,8 @@ import java.text.SimpleDateFormat
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 
 
 class MainActivity : ComponentActivity() {
@@ -131,9 +140,7 @@ class MainActivity : ComponentActivity() {
             Scaffold(
                 topBar = {
                     TopAppBar() {
-                        var searchClicked by remember { mutableStateOf(false) }
                         Text("Network Stats")
-                        Button(onClick = { searchClicked = true }) {}
                         IconButton(onClick = {
                             if (usageListViewModel.networkType == UsageDetailsManager.NetworkType.WIFI) {
                                 usageListViewModel.networkType =
@@ -210,6 +217,7 @@ class MainActivity : ComponentActivity() {
 
                         DropdownMenu(
                             expanded = dropdownExpanded,
+                            offset = DpOffset(80.dp, 0.dp),
                             onDismissRequest = { dropdownExpanded = false }) {
                             DropdownMenuItem(onClick = {
                                 onSelectTimeFrameMode(TimeFrameMode.LAST_WEEK)
@@ -297,6 +305,58 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
+    fun GeneralInfoHeader(
+        timeframe: Pair<LocalDateTime, LocalDateTime>,
+        networkType: UsageDetailsManager.NetworkType,
+    totalUsage: Pair<Long, Long>
+    ) {
+        Card() {
+            Column {
+                Row(horizontalArrangement = Arrangement.Center) {
+                    Text(byteToStringRepresentation(totalUsage.first), modifier = Modifier.weight(1f), textAlign = TextAlign.End)
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_sharp_arrow_downward_24),
+                        contentDescription = ""
+                    )
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_baseline_arrow_upward_24),
+                        contentDescription = ""
+                    )
+                    Text(byteToStringRepresentation(totalUsage.second), Modifier.weight(1f))
+                }
+                Row(horizontalArrangement = Arrangement.SpaceAround) {
+                    Text(
+                        timeframe.first.formatWithReference(
+                            LocalDateTime.now()
+                        ),
+                        style = TextStyle(fontSize = 14.sp),
+                        modifier = Modifier.padding(10.dp, 0.dp)
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    Text(
+                        timeframe.second.formatWithReference(
+                            LocalDateTime.now()
+                        ),
+                        style = TextStyle(fontSize = 14.sp),
+                        modifier = Modifier.padding(10.dp, 0.dp)
+                    )
+                }
+            }
+
+        }
+    }
+
+    @Preview(showBackground = true)
+    @Composable
+    fun GeneralInfoHeaderPreview() {
+        GeneralInfoHeader(
+            timeframe = Pair(LocalDateTime.now().minusDays(1).minusHours(4), LocalDateTime.now()),
+            networkType = UsageDetailsManager.NetworkType.WIFI,
+            Pair(420000, 23499)
+        )
+    }
+
+    @Composable
     fun NetworkActivityOverviewControls() {
         NetworkActivityForAppsList(usageListViewModel)
     }
@@ -305,8 +365,20 @@ class MainActivity : ComponentActivity() {
     @Composable
     fun NetworkActivityForAppsList(viewModel: UsageListViewModel) {
         val buckets = viewModel.usageByUID.observeAsState()
+        val usageTotal: Pair<Long, Long> =
+            buckets.value?.let { it ->
+                Pair(it.map { it.rxBytes }.reduce { acc, rx -> acc + rx },
+                    it.map { it.txBytes }.reduce { acc, tx -> acc + tx })
+            }?:Pair(0,0)
         buckets.value?.let {
             LazyColumn {
+                this.item {
+                    GeneralInfoHeader(
+                        timeframe = viewModel.timeFrame,
+                        networkType = viewModel.networkType,
+                        totalUsage = usageTotal
+                    )
+                }
                 this.items(it) { b ->
                     ApplicationUsageRow(usage = b)
                 }
@@ -377,14 +449,14 @@ class MainActivity : ComponentActivity() {
             usageListViewModel.selectLast30Days()
         }
 
-            with(
-                this@MainActivity.getSharedPreferences(
-                    this@MainActivity.getString(R.string.prefence_file_key),
-                    Context.MODE_PRIVATE
-                ).edit()
-            ) {
-                putString("mode", mode.name)
-                apply()
+        with(
+            this@MainActivity.getSharedPreferences(
+                this@MainActivity.getString(R.string.prefence_file_key),
+                Context.MODE_PRIVATE
+            ).edit()
+        ) {
+            putString("mode", mode.name)
+            apply()
         }
     }
 
