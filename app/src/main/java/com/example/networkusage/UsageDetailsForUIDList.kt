@@ -9,13 +9,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import java.time.Instant
 import java.time.LocalDateTime
-import java.time.ZoneId
 import java.time.ZoneOffset
 
 @Composable
 fun UsageDetailsForUIDList(usageDetailsManager: UsageDetailsManager, uid: Int) {
     LazyColumn(content = {
-        for (bucket in usageDetailsManager.queryForUid(uid)) {
+        val buckets = usageDetailsManager.queryForUid(uid)
+        item {
+            BasicPlot(points = buckets.map {
+                UsagePoint(
+                    it.rxBytes,
+                    it.txBytes,
+                    LocalDateTime.ofEpochSecond(it.startTimeStamp, 0, ZoneOffset.UTC),
+                    LocalDateTime.ofEpochSecond(it.endTimeStamp, 0, ZoneOffset.UTC)
+                )
+            })
+        }
+        for (bucket in buckets) {
             item {
                 Column(Modifier.padding(8.dp)) {
                     Text(

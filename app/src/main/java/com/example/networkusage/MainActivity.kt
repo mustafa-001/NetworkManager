@@ -106,7 +106,7 @@ class MainActivity : ComponentActivity() {
                 UsageDetailsManager.NetworkType.GSM.name
             )!!
         )
-        var timeFrameMode = TimeFrameMode.valueOf(sharedPref.getString("mode", "CUSTOM")!!)
+        var timeFrameMode =  TimeFrameMode.valueOf(sharedPref.getString("mode", "CUSTOM")!!)
         when (timeFrameMode) {
             TimeFrameMode.LAST_WEEK -> {
                 usageListViewModel.selectLastWeek()
@@ -229,7 +229,7 @@ class MainActivity : ComponentActivity() {
                                 onSelectTimeFrameMode(TimeFrameMode.LAST_30_DAYS)
                                 dropdownExpanded = false
                             }) {
-                                Text("Lat 30 Days")
+                                Text("Last 30 Days")
                             }
                             DropdownMenuItem(onClick = {
                                 onSelectTimeFrameMode(TimeFrameMode.THIS_MONTH)
@@ -315,7 +315,7 @@ class MainActivity : ComponentActivity() {
                 Row(horizontalArrangement = Arrangement.Center) {
                     Text(byteToStringRepresentation(totalUsage.first), modifier = Modifier.weight(1f), textAlign = TextAlign.End)
                     Icon(
-                        painter = painterResource(id = R.drawable.ic_sharp_arrow_downward_24),
+                        painter = painterResource(id = R.drawable.ic_baseline_arrow_upward_24),
                         contentDescription = ""
                     )
                     Icon(
@@ -367,8 +367,8 @@ class MainActivity : ComponentActivity() {
         val buckets = viewModel.usageByUID.observeAsState()
         val usageTotal: Pair<Long, Long> =
             buckets.value?.let { it ->
-                Pair(it.map { it.rxBytes }.reduce { acc, rx -> acc + rx },
-                    it.map { it.txBytes }.reduce { acc, tx -> acc + tx })
+                Pair(it.map { it.rxBytes }.ifEmpty { listOf(0L) }.reduce { acc, rx -> acc + rx },
+                    it.map { it.txBytes }.ifEmpty { listOf(0L) }.reduce { acc, tx -> acc + tx })
             }?:Pair(0,0)
         buckets.value?.let {
             LazyColumn {
