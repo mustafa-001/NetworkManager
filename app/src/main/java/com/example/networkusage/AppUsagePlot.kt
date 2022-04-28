@@ -6,10 +6,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.example.networkusage.ui.theme.DownloadColor
 import com.example.networkusage.ui.theme.NetworkUsageTheme
+import com.example.networkusage.ui.theme.UploadColor
 import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.components.YAxis
 import com.github.mikephil.charting.data.Entry
@@ -74,12 +77,11 @@ fun BasicPlot(points: List<UsagePoint>) {
                     )
                 }
 
-                val dataset = LineDataSet(rxEntries, "Usage")
                 view.data = LineData(
                     LineDataSet(txEntries, "Transmitted").apply {
                         setDrawFilled(true)
                         color = Color.TRANSPARENT
-                        fillColor = 0xFF5722
+                        fillColor = UploadColor.toArgb()
                         fillAlpha = 255
                         setDrawCircles(false)
                         setDrawValues(false)
@@ -88,7 +90,7 @@ fun BasicPlot(points: List<UsagePoint>) {
                     LineDataSet(rxEntries, "Received").apply {
                         setDrawFilled(true)
                         color = Color.TRANSPARENT
-                        fillColor = 0x8BC34A
+                        fillColor = DownloadColor.toArgb()
                         fillAlpha = 255
                         setDrawCircles(false)
                         setDrawValues(false)
