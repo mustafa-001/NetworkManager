@@ -1,7 +1,6 @@
 package com.example.networkusage
 
 import android.graphics.Color
-import android.icu.text.AlphabeticIndex
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -12,7 +11,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.example.networkusage.ui.theme.NetworkUsageTheme
 import com.github.mikephil.charting.charts.LineChart
-import com.github.mikephil.charting.components.Description
 import com.github.mikephil.charting.components.YAxis
 import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
@@ -33,23 +31,45 @@ fun BasicPlot(points: List<UsagePoint>) {
         AndroidView(factory = { context ->
             LineChart(context)
         }, modifier = Modifier
-            .height(400.dp)
+            .height(200.dp)
             .fillMaxWidth(),
             update = { view ->
                 view.setExtraOffsets(0f, 0f, 0f, 0f)
-                val rxEntries = mutableListOf<Entry>()
-                val txEntries = mutableListOf<Entry>()
+                val timeDifference = points[1].let {
+                    (it.end.toEpochSecond(ZoneOffset.UTC) - it.start.toEpochSecond(
+                        ZoneOffset.UTC
+                    )) / 2
+                }
+
+                val rxEntries =
+                    mutableListOf(
+                        Entry(
+                            points[1].start.toEpochSecond(ZoneOffset.UTC)
+                                .toFloat() - timeDifference /2, 0f
+                        )
+                    )
+                val txEntries =
+                    mutableListOf(
+                        Entry(
+                            points[1].start.toEpochSecond(ZoneOffset.UTC)
+                                .toFloat() - timeDifference / 2, 0f
+                        )
+                    )
+                var runningRx = 0f
+                var runningTx = 0f
                 points.map {
+                    runningRx += it.rxBytes.toFloat()
+                    runningTx += it.rxBytes.toFloat() + it.txBytes.toFloat()
                     rxEntries.add(
                         Entry(
-                            it.start.toEpochSecond(ZoneOffset.UTC).toFloat(),
-                            it.rxBytes.toFloat()
+                            it.start.toEpochSecond(ZoneOffset.UTC).toFloat()+timeDifference/2,
+                            runningRx
                         )
                     )
                     txEntries.add(
                         Entry(
-                            it.start.toEpochSecond(ZoneOffset.UTC).toFloat(),
-                            (it.txBytes + it.rxBytes).toFloat()
+                            it.start.toEpochSecond(ZoneOffset.UTC).toFloat()+timeDifference/2,
+                            runningTx
                         )
                     )
                 }
@@ -58,14 +78,18 @@ fun BasicPlot(points: List<UsagePoint>) {
                 view.data = LineData(
                     LineDataSet(txEntries, "Transmitted").apply {
                         setDrawFilled(true)
-                        fillColor = Color.parseColor("#D06F24")
+                        color = Color.TRANSPARENT
+                        fillColor = 0xFF5722
+                        fillAlpha = 255
                         setDrawCircles(false)
                         setDrawValues(false)
 
                     },
                     LineDataSet(rxEntries, "Received").apply {
                         setDrawFilled(true)
-                        fillColor = Color.parseColor("#226C0F")
+                        color = Color.TRANSPARENT
+                        fillColor = 0x8BC34A
+                        fillAlpha = 255
                         setDrawCircles(false)
                         setDrawValues(false)
 
@@ -75,6 +99,7 @@ fun BasicPlot(points: List<UsagePoint>) {
                 view.axisLeft.removeAllLimitLines()
                 view.axisLeft.setDrawAxisLine(false)
                 view.axisLeft.setPosition(YAxis.YAxisLabelPosition.INSIDE_CHART)
+                view.axisLeft.isEnabled = false
                 view.axisRight.isEnabled = false
                 view.xAxis.isEnabled = false
                 view.description.isEnabled = false
