@@ -14,10 +14,13 @@ import com.example.networkusage.ui.theme.DownloadColor
 import com.example.networkusage.ui.theme.NetworkUsageTheme
 import com.example.networkusage.ui.theme.UploadColor
 import com.github.mikephil.charting.charts.LineChart
+import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.components.YAxis
 import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
+import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
+import com.github.mikephil.charting.formatter.ValueFormatter
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 
@@ -31,33 +34,26 @@ data class UsagePoint(
 @Composable
 fun BasicPlot(points: List<UsagePoint>) {
     Column {
-        AndroidView(factory = { context ->
-            LineChart(context)
-        }, modifier = Modifier
-            .height(200.dp)
-            .fillMaxWidth(),
+        AndroidView(
+            factory = { context ->
+                LineChart(context)
+            }, modifier = Modifier
+                .height(200.dp)
+                .fillMaxWidth(),
             update = { view ->
                 view.setExtraOffsets(0f, 0f, 0f, 0f)
-                val timeDifference = points[1].let {
-                    (it.end.toEpochSecond(ZoneOffset.UTC) - it.start.toEpochSecond(
-                        ZoneOffset.UTC
-                    )) / 2
+                val timeDifference = points.getOrNull(0).let {
+                    if (it == null) {
+                        0
+                    } else {
+                        (it.end.toEpochSecond(ZoneOffset.UTC) - it.start.toEpochSecond(
+                            ZoneOffset.UTC
+                        ))
+                    }
                 }
 
-                val rxEntries =
-                    mutableListOf(
-                        Entry(
-                            points[1].start.toEpochSecond(ZoneOffset.UTC)
-                                .toFloat() - timeDifference /2, 0f
-                        )
-                    )
-                val txEntries =
-                    mutableListOf(
-                        Entry(
-                            points[1].start.toEpochSecond(ZoneOffset.UTC)
-                                .toFloat() - timeDifference / 2, 0f
-                        )
-                    )
+                val rxEntries = mutableListOf<Entry>()
+                val txEntries = mutableListOf<Entry>()
                 var runningRx = 0f
                 var runningTx = 0f
                 points.map {
@@ -65,17 +61,33 @@ fun BasicPlot(points: List<UsagePoint>) {
                     runningTx += it.rxBytes.toFloat() + it.txBytes.toFloat()
                     rxEntries.add(
                         Entry(
-                            it.start.toEpochSecond(ZoneOffset.UTC).toFloat()+timeDifference/2,
+                            it.start.toEpochSecond(ZoneOffset.UTC).toFloat() + timeDifference / 2,
                             runningRx
                         )
                     )
                     txEntries.add(
                         Entry(
-                            it.start.toEpochSecond(ZoneOffset.UTC).toFloat()+timeDifference/2,
+                            it.start.toEpochSecond(ZoneOffset.UTC).toFloat() + timeDifference / 2,
                             runningTx
                         )
                     )
                 }
+                if (txEntries.isEmpty()) {
+                    txEntries.add(
+                        Entry(
+                            0f,
+                            LocalDateTime.now().toEpochSecond(ZoneOffset.UTC).toFloat()
+                        )
+                    )
+                    rxEntries.add(
+                        Entry(
+                            0f,
+                            LocalDateTime.now().toEpochSecond(ZoneOffset.UTC).toFloat()
+                        )
+                    )
+                }
+                rxEntries.last().x = LocalDateTime.now().toEpochSecond(ZoneOffset.UTC).toFloat()
+                txEntries.last().x = LocalDateTime.now().toEpochSecond(ZoneOffset.UTC).toFloat()
 
                 view.data = LineData(
                     LineDataSet(txEntries, "Transmitted").apply {
@@ -103,7 +115,18 @@ fun BasicPlot(points: List<UsagePoint>) {
                 view.axisLeft.setPosition(YAxis.YAxisLabelPosition.INSIDE_CHART)
                 view.axisLeft.isEnabled = false
                 view.axisRight.isEnabled = false
-                view.xAxis.isEnabled = false
+                view.xAxis.valueFormatter = object : ValueFormatter() {
+                    override fun getFormattedValue(value: Float): String {
+                        return LocalDateTime.ofEpochSecond(
+                            (value.toLong()),
+                            0,
+                            ZoneOffset.UTC
+                        ).formatWithReference(
+                            LocalDateTime.now()
+                        )
+                    }
+                }
+                view.xAxis.position = XAxis.XAxisPosition.BOTTOM
                 view.description.isEnabled = false
                 view.legend.isEnabled = false
                 view.invalidate()

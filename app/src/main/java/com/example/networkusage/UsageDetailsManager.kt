@@ -34,13 +34,14 @@ class UsageDetailsManager(
         WIFI
     }
 
-    fun queryForUid(uid: Int): List<NetworkStats.Bucket> {
+    fun queryForUid(uid: Int, timeFrame: Pair<LocalDateTime, LocalDateTime>): List<NetworkStats.Bucket> {
+        Log.d("Network Usage", "timeFrame set to: ${timeFrame.first} and ${timeFrame.second}")
         val usage = runBlocking {
             networkStatsManager.queryDetailsForUid(
                 ConnectivityManager.TYPE_MOBILE,
                 null,
-                0,
-                System.currentTimeMillis(),
+                timeFrame.first.toEpochSecond(ZoneOffset.UTC)*1000,
+                timeFrame.second.toEpochSecond(ZoneOffset.UTC)*1000,
                 uid
             )
         }
