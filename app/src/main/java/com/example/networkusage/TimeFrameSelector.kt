@@ -23,9 +23,6 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 
-enum class TimeFrameMode {
-    LAST_WEEK, LAST_30_DAYS, THIS_MONTH, CUSTOM
-}
 
 @Composable
 fun TimeFrameSelector(

@@ -17,10 +17,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.*
-import androidx.compose.material.icons.Icons
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -31,7 +29,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
 import androidx.navigation.NavController
@@ -46,9 +43,11 @@ import java.text.SimpleDateFormat
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
-import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
 
+
+enum class TimeFrameMode {
+    TODAY, LAST_WEEK, LAST_30_DAYS, THIS_MONTH, CUSTOM
+}
 
 class MainActivity : ComponentActivity() {
     private lateinit var usageListViewModel: UsageListViewModel
@@ -106,35 +105,25 @@ class MainActivity : ComponentActivity() {
                 UsageDetailsManager.NetworkType.GSM.name
             )!!
         )
-        var timeFrameMode =  TimeFrameMode.valueOf(sharedPref.getString("mode", "CUSTOM")!!)
-        when (timeFrameMode) {
-            TimeFrameMode.LAST_WEEK -> {
-                usageListViewModel.selectLastWeek()
-            }
-            TimeFrameMode.THIS_MONTH -> {
-                usageListViewModel.selectThisMOnth()
-            }
-            TimeFrameMode.LAST_30_DAYS -> {
-                usageListViewModel.selectLast30Days()
-            }
-            else -> {
-                usageListViewModel.timeFrame = Pair(
-                    LocalDateTime.ofEpochSecond(
-                        sharedPref.getLong(
-                            "start_time",
-                            Instant.now().minusMillis(1000 * 60 * 60 * 24 * 7).epochSecond
-                        ), 0, ZoneOffset.UTC
-                    ),
-                    LocalDateTime.ofEpochSecond(
-                        sharedPref.getLong(
-                            "end_time",
-                            Instant.now().epochSecond
-                        ), 0, ZoneOffset.UTC
-                    )
+        val timeFrameMode = TimeFrameMode.valueOf(sharedPref.getString("mode", "CUSTOM")!!)
+        if (timeFrameMode != TimeFrameMode.CUSTOM) {
+            usageListViewModel.selectPredefinedTimeFrame(timeFrameMode)
+        } else {
+            usageListViewModel.timeFrame = Pair(
+                LocalDateTime.ofEpochSecond(
+                    sharedPref.getLong(
+                        "start_time",
+                        Instant.now().minusMillis(1000 * 60 * 60 * 24 * 7).epochSecond
+                    ), 0, ZoneOffset.UTC
+                ),
+                LocalDateTime.ofEpochSecond(
+                    sharedPref.getLong(
+                        "end_time",
+                        Instant.now().epochSecond
+                    ), 0, ZoneOffset.UTC
                 )
-            }
+            )
         }
-
 
         setContent {
             Scaffold(
@@ -276,9 +265,10 @@ class MainActivity : ComponentActivity() {
                                         type = NavType.IntType
                                     })
                                 ) { navBackStackEntry ->
-                                    UsageDetailsForUIDList(
+                                    UsageDetailsForUID(
                                         usageDetailsManager,
-                                        navBackStackEntry.arguments?.getInt("bucket")!!
+                                        navBackStackEntry.arguments?.getInt("bucket")!!,
+                                        usageListViewModel.timeFrame
                                     )
                                 }
                             }
@@ -308,12 +298,16 @@ class MainActivity : ComponentActivity() {
     fun GeneralInfoHeader(
         timeframe: Pair<LocalDateTime, LocalDateTime>,
         networkType: UsageDetailsManager.NetworkType,
-    totalUsage: Pair<Long, Long>
+        totalUsage: Pair<Long, Long>
     ) {
         Card() {
             Column {
                 Row(horizontalArrangement = Arrangement.Center) {
-                    Text(byteToStringRepresentation(totalUsage.first), modifier = Modifier.weight(1f), textAlign = TextAlign.End)
+                    Text(
+                        byteToStringRepresentation(totalUsage.first),
+                        modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.End
+                    )
                     Icon(
                         painter = painterResource(id = R.drawable.ic_baseline_arrow_upward_24),
                         contentDescription = ""
@@ -369,7 +363,7 @@ class MainActivity : ComponentActivity() {
             buckets.value?.let { it ->
                 Pair(it.map { it.rxBytes }.ifEmpty { listOf(0L) }.reduce { acc, rx -> acc + rx },
                     it.map { it.txBytes }.ifEmpty { listOf(0L) }.reduce { acc, tx -> acc + tx })
-            }?:Pair(0,0)
+            } ?: Pair(0, 0)
         buckets.value?.let {
             LazyColumn {
                 this.item {
@@ -441,14 +435,8 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun onSelectTimeFrameMode(mode: TimeFrameMode) {
-        if (mode == TimeFrameMode.LAST_WEEK) {
-            usageListViewModel.selectLastWeek()
-        } else if (mode == TimeFrameMode.THIS_MONTH) {
-            usageListViewModel.selectThisMOnth()
-        } else if (mode == TimeFrameMode.LAST_30_DAYS) {
-            usageListViewModel.selectLast30Days()
-        }
-
+        assert(mode != TimeFrameMode.CUSTOM)
+        usageListViewModel.selectPredefinedTimeFrame(mode)
         with(
             this@MainActivity.getSharedPreferences(
                 this@MainActivity.getString(R.string.prefence_file_key),

@@ -1,5 +1,6 @@
 package com.example.networkusage
 
+import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -28,18 +29,23 @@ class UsageListViewModel(val usageDetailsManager: UsageDetailsManager) :
     )
         set(value) {
             field = value
+            Log.d("Network Usage", "timeFrame set to: ${value.first} and ${value.second}")
             viewModelScope.launch(Dispatchers.IO) {
                 usageByUID.postValue(usageDetailsManager.getUsageByUID2(timeFrame, networkType))
             }
         }
 
-    fun selectLastWeek(){
-        timeFrame =Pair( LocalDateTime.now().minusDays(7),LocalDateTime.now())
-    }
-    fun selectLast30Days(){
-        timeFrame =Pair( LocalDateTime.now().minusDays(30),LocalDateTime.now())
-    }
-    fun selectThisMOnth(){
-        timeFrame =Pair( LocalDateTime.now().withDayOfMonth(1).withHour(1).withMinute(1),LocalDateTime.now())
+
+    fun selectPredefinedTimeFrame(timeFrameMode: TimeFrameMode) {
+        timeFrame = when (timeFrameMode) {
+            TimeFrameMode.LAST_WEEK -> Pair(LocalDateTime.now().minusDays(7), LocalDateTime.now())
+            TimeFrameMode.LAST_30_DAYS -> Pair(LocalDateTime.now().minusDays(30), LocalDateTime.now())
+            TimeFrameMode.THIS_MONTH -> Pair(
+                LocalDateTime.now().withDayOfMonth(1).withHour(0).withMinute(0),
+                LocalDateTime.now()
+            )
+            TimeFrameMode.TODAY -> Pair(LocalDateTime.now().withHour(0).withMinute(9), LocalDateTime.now())
+            TimeFrameMode.CUSTOM -> TODO()
+        }
     }
 }
