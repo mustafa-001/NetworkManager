@@ -10,9 +10,9 @@ fun LocalDateTime.formatWithReference(reference: LocalDateTime): String {
         throw (Exception("Earlier Reference Value"))
     } else if (reference.dayOfYear == this.dayOfYear && reference.year == this.year) {
         return this.format(DateTimeFormatter.ofPattern("HH:mm"))
-    } else if (reference.year == reference.year) {
+    } else if (reference.year == this.year) {
         return this.format(DateTimeFormatter.ofPattern("LLL dd"))
     } else {
-        return this.format(DateTimeFormatter.ofPattern("yy/MM/dd"))
+        return this.format(DateTimeFormatter.ofPattern("dd/MM/yy"))
     }
 }

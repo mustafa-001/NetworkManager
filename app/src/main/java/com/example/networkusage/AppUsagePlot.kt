@@ -1,6 +1,7 @@
 package com.example.networkusage
 
 import android.graphics.Color
+import android.util.Log
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -42,7 +43,8 @@ fun BasicPlot(points: List<UsagePoint>) {
                 .fillMaxWidth(),
             update = { view ->
                 view.setExtraOffsets(0f, 0f, 0f, 0f)
-                val timeDifference = points.getOrNull(0).let {
+                val timeDifference = 0
+                points.getOrNull(0).let {
                     if (it == null) {
                         0
                     } else {
@@ -86,9 +88,13 @@ fun BasicPlot(points: List<UsagePoint>) {
                         )
                     )
                 }
-                rxEntries.last().x = LocalDateTime.now().toEpochSecond(ZoneOffset.UTC).toFloat()
-                txEntries.last().x = LocalDateTime.now().toEpochSecond(ZoneOffset.UTC).toFloat()
+                if (rxEntries.last().x > LocalDateTime.now().toEpochSecond(ZoneOffset.UTC)
+                        .toFloat()
+                ) {
+                    rxEntries.last().x = LocalDateTime.now().toEpochSecond(ZoneOffset.UTC).toFloat()
+                    txEntries.last().x = LocalDateTime.now().toEpochSecond(ZoneOffset.UTC).toFloat()
 
+                }
                 view.data = LineData(
                     LineDataSet(txEntries, "Transmitted").apply {
                         setDrawFilled(true)
@@ -142,10 +148,10 @@ fun BasicPlotPreview() {
         val p = UsagePoint(
             (10 - i.toLong()) * 100000,
             (9 - i.toLong()) * 20000,
-            LocalDateTime.now().minusHours((i * 2).toLong()),
+            LocalDateTime.now().minusHours((i * 2).toLong()).withYear(2021),
             LocalDateTime.now().minusHours(
                 (i * 2 - 2).toLong()
-            )
+            ).withYear(2021)
         )
         points.add(p)
     }
