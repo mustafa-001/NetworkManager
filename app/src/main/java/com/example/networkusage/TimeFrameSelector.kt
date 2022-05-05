@@ -15,6 +15,7 @@ import androidx.compose.material.Button
 import androidx.compose.material.Card
 import androidx.compose.material.Text
 import androidx.compose.runtime.*
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -33,11 +34,12 @@ fun TimeFrameSelector(
     onSubmitRequest: (Pair<LocalDateTime, LocalDateTime>) -> Unit
 ) {
     Dialog(onDismissRequest = onDismissRequest) {
+        val viewModelTime by viewModel.timeFrame.observeAsState()
         var startTime = remember {
-            viewModel.timeFrame.first
+            viewModelTime!!.first
         }
         var endTime = remember {
-            viewModel.timeFrame.second
+            viewModelTime!!.second
         }
         val scrollState = rememberScrollState()
 //        var customSelectionVisibility by remember { mutableStateOf(mode == TimeFrameMode.CUSTOM) }

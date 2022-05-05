@@ -7,8 +7,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.LiveData
 import java.sql.Time
 import java.time.Instant
 import java.time.LocalDateTime
@@ -52,12 +55,13 @@ fun insertEmptyBuckets(
 fun UsageDetailsForUID(
     usageDetailsManager: UsageDetailsManager,
     uid: Int,
-    timeFrame: Pair<LocalDateTime, LocalDateTime>
+    timeFrame: LiveData<Pair<LocalDateTime, LocalDateTime>>
 ) {
+    val time by timeFrame.observeAsState(Pair(LocalDateTime.now().withDayOfYear(1), LocalDateTime.now()))
     LazyColumn(content = {
-        val buckets = usageDetailsManager.queryForUid(uid, timeFrame)
+        val buckets = usageDetailsManager.queryForUid(uid, time)
         item {
-            BasicPlot(points = insertEmptyBuckets(buckets, timeFrame ))
+            BasicPlot(points = insertEmptyBuckets(buckets, time ))
         }
         for (bucket in buckets) {
             item {

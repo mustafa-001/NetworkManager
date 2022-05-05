@@ -31,6 +31,8 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -109,18 +111,20 @@ class MainActivity : ComponentActivity() {
         if (timeFrameMode != TimeFrameMode.CUSTOM) {
             usageListViewModel.selectPredefinedTimeFrame(timeFrameMode)
         } else {
-            usageListViewModel.timeFrame = Pair(
-                LocalDateTime.ofEpochSecond(
-                    sharedPref.getLong(
-                        "start_time",
-                        Instant.now().minusMillis(1000 * 60 * 60 * 24 * 7).epochSecond
-                    ), 0, ZoneOffset.UTC
-                ),
-                LocalDateTime.ofEpochSecond(
-                    sharedPref.getLong(
-                        "end_time",
-                        Instant.now().epochSecond
-                    ), 0, ZoneOffset.UTC
+            usageListViewModel.setTime(
+                Pair(
+                    LocalDateTime.ofEpochSecond(
+                        sharedPref.getLong(
+                            "start_time",
+                            Instant.now().minusMillis(1000 * 60 * 60 * 24 * 7).epochSecond
+                        ), 0, ZoneOffset.UTC
+                    ),
+                    LocalDateTime.ofEpochSecond(
+                        sharedPref.getLong(
+                            "end_time",
+                            Instant.now().epochSecond
+                        ), 0, ZoneOffset.UTC
+                    )
                 )
             )
         }
@@ -183,7 +187,7 @@ class MainActivity : ComponentActivity() {
                                 mode = timeFrameMode,
                                 onDismissRequest = { showSelectTimeFrame = false },
                                 onSubmitRequest = { time ->
-                                    usageListViewModel.timeFrame = time
+                                    usageListViewModel.setTime(time)
                                     with(
                                         this@MainActivity.getSharedPreferences(
                                             this@MainActivity.getString(R.string.prefence_file_key),
@@ -302,11 +306,16 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     fun GeneralInfoHeader(
-        timeframe: Pair<LocalDateTime, LocalDateTime>,
+        timeframe: LiveData<Pair<LocalDateTime, LocalDateTime>>,
         networkType: UsageDetailsManager.NetworkType,
         totalUsage: Pair<Long, Long>
     ) {
         Card() {
+            val time: Pair<LocalDateTime, LocalDateTime> by timeframe.observeAsState(
+                Pair(
+                    LocalDateTime.now(), LocalDateTime.now()
+                )
+            )
             Column {
                 Row(horizontalArrangement = Arrangement.Center) {
                     Text(
@@ -326,7 +335,7 @@ class MainActivity : ComponentActivity() {
                 }
                 Row(horizontalArrangement = Arrangement.SpaceAround) {
                     Text(
-                        timeframe.first.formatWithReference(
+                        time.first.formatWithReference(
                             LocalDateTime.now()
                         ),
                         style = TextStyle(fontSize = 14.sp),
@@ -334,7 +343,7 @@ class MainActivity : ComponentActivity() {
                     )
                     Spacer(modifier = Modifier.weight(1f))
                     Text(
-                        timeframe.second.formatWithReference(
+                        time.second.formatWithReference(
                             LocalDateTime.now()
                         ),
                         style = TextStyle(fontSize = 14.sp),
@@ -350,7 +359,12 @@ class MainActivity : ComponentActivity() {
     @Composable
     fun GeneralInfoHeaderPreview() {
         GeneralInfoHeader(
-            timeframe = Pair(LocalDateTime.now().minusDays(1).minusHours(4), LocalDateTime.now()),
+            timeframe = MutableLiveData<Pair<LocalDateTime, LocalDateTime>>().apply{this.postValue(
+                Pair(
+                    LocalDateTime.now().minusDays(1).minusHours(4),
+                    LocalDateTime.now()
+                )
+            )} as LiveData<Pair<LocalDateTime, LocalDateTime>>,
             networkType = UsageDetailsManager.NetworkType.WIFI,
             Pair(420000, 23499)
         )
