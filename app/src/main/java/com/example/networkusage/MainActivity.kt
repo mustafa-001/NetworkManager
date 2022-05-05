@@ -209,6 +209,12 @@ class MainActivity : ComponentActivity() {
                             offset = DpOffset(80.dp, 0.dp),
                             onDismissRequest = { dropdownExpanded = false }) {
                             DropdownMenuItem(onClick = {
+                                onSelectTimeFrameMode(TimeFrameMode.TODAY)
+                                dropdownExpanded = false
+                            }) {
+                                Text("Today")
+                            }
+                            DropdownMenuItem(onClick = {
                                 onSelectTimeFrameMode(TimeFrameMode.LAST_WEEK)
                                 dropdownExpanded = false
                             }) {
