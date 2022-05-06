@@ -1,10 +1,16 @@
 package com.example.networkusage
 
 import android.graphics.Color
+import android.graphics.Paint
 import android.util.Log
+import android.util.TypedValue
+import android.view.View
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.material.Colors
+import androidx.compose.material.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
@@ -32,9 +38,13 @@ data class UsagePoint(
     val end: LocalDateTime
 )
 
+//TODO Add a onClick callback.
+//TODO Add a zoom or sliding view.
+//TODO Make x-axis labels nice and round values. eg. 05.00 10.00
 @Composable
 fun BasicPlot(points: List<UsagePoint>) {
     Column {
+        val onPrimaryColor = MaterialTheme.colors.onPrimary.toArgb()
         AndroidView(
             factory = { context ->
                 LineChart(context)
@@ -43,8 +53,7 @@ fun BasicPlot(points: List<UsagePoint>) {
                 .fillMaxWidth(),
             update = { view ->
                 view.setExtraOffsets(0f, 0f, 0f, 0f)
-                val timeDifference = 0
-                points.getOrNull(0).let {
+                val timeDifference = points.getOrNull(0).let {
                     if (it == null) {
                         0
                     } else {
@@ -75,18 +84,10 @@ fun BasicPlot(points: List<UsagePoint>) {
                     )
                 }
                 if (txEntries.isEmpty()) {
-                    txEntries.add(
-                        Entry(
-                            0f,
-                            LocalDateTime.now().toEpochSecond(ZoneOffset.UTC).toFloat()
-                        )
-                    )
-                    rxEntries.add(
-                        Entry(
-                            0f,
-                            LocalDateTime.now().toEpochSecond(ZoneOffset.UTC).toFloat()
-                        )
-                    )
+                    val nowInEpoch =
+                        LocalDateTime.now().toEpochSecond(ZoneOffset.UTC).toFloat()
+                    txEntries.add(Entry(nowInEpoch, 0f))
+                    rxEntries.add(Entry(nowInEpoch, 0f))
                 }
                 if (rxEntries.last().x > LocalDateTime.now().toEpochSecond(ZoneOffset.UTC)
                         .toFloat()
@@ -115,6 +116,7 @@ fun BasicPlot(points: List<UsagePoint>) {
 
                     }
                 )
+                view.setTouchEnabled(false)
                 view.axisLeft.setDrawGridLines(false)
                 view.axisLeft.removeAllLimitLines()
                 view.axisLeft.setDrawAxisLine(false)
@@ -132,6 +134,8 @@ fun BasicPlot(points: List<UsagePoint>) {
                         )
                     }
                 }
+                view.xAxis.textColor = onPrimaryColor
+                view.xAxis.setDrawGridLines(false)
                 view.xAxis.position = XAxis.XAxisPosition.BOTTOM
                 view.description.isEnabled = false
                 view.legend.isEnabled = false
@@ -140,7 +144,14 @@ fun BasicPlot(points: List<UsagePoint>) {
     }
 }
 
-@Preview(showBackground = true)
+private fun getThemeTextColor(view: View): Int {
+    val typedValue = TypedValue()
+    val theme = view.context.theme
+    theme.resolveAttribute(com.google.android.material.R.attr.colorOnPrimary, typedValue, true)
+    return typedValue.data
+}
+
+@Preview(showBackground = true, backgroundColor = Color.BLACK.toLong())
 @Composable
 fun BasicPlotPreview() {
     val points = mutableListOf<UsagePoint>()
@@ -148,10 +159,10 @@ fun BasicPlotPreview() {
         val p = UsagePoint(
             (10 - i.toLong()) * 100000,
             (9 - i.toLong()) * 20000,
-            LocalDateTime.now().minusHours((i * 2).toLong()).withYear(2021),
+            LocalDateTime.now().minusHours((i * 2).toLong()),
             LocalDateTime.now().minusHours(
                 (i * 2 - 2).toLong()
-            ).withYear(2021)
+            )
         )
         points.add(p)
     }

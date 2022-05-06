@@ -50,6 +50,7 @@ class UsageListViewModel(val usageDetailsManager: UsageDetailsManager) :
 
 
     fun selectPredefinedTimeFrame(timeFrameMode: TimeFrameMode) {
+        assert(timeFrameMode != TimeFrameMode.CUSTOM)
         setTime(
             when (timeFrameMode) {
                 TimeFrameMode.LAST_WEEK -> Pair(

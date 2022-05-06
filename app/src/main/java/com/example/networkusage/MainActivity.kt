@@ -455,8 +455,9 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun onSelectTimeFrameMode(mode: TimeFrameMode) {
-        assert(mode != TimeFrameMode.CUSTOM)
-        usageListViewModel.selectPredefinedTimeFrame(mode)
+        if (mode != TimeFrameMode.CUSTOM){
+            usageListViewModel.selectPredefinedTimeFrame(mode)
+        }
         with(
             this@MainActivity.getSharedPreferences(
                 this@MainActivity.getString(R.string.prefence_file_key),
