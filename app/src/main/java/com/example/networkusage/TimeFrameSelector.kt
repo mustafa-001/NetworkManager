@@ -3,11 +3,8 @@ package com.example.networkusage
 import android.app.Activity
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
-import android.content.Context
 import android.util.Log
 import androidx.activity.ComponentActivity
-import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,10 +14,10 @@ import androidx.compose.material.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import java.time.LocalDateTime
+import com.example.networkusage.ViewModels.UsageListViewModel
+import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 
 
@@ -31,7 +28,7 @@ fun TimeFrameSelector(
     viewModel: UsageListViewModel,
     mode: TimeFrameMode,
     onDismissRequest: () -> Unit,
-    onSubmitRequest: (Pair<LocalDateTime, LocalDateTime>) -> Unit
+    onSubmitRequest: (Pair<ZonedDateTime, ZonedDateTime>) -> Unit
 ) {
     Dialog(onDismissRequest = onDismissRequest) {
         val viewModelTime by viewModel.timeFrame.observeAsState()
@@ -84,10 +81,10 @@ fun TimeFrameSelector(
 @Composable
 fun TimeSelector(
     label: String,
-    time: LocalDateTime,
+    time: ZonedDateTime,
     activity: Activity,
     visibility: Boolean,
-    callback: ((LocalDateTime) -> Unit)
+    callback: ((ZonedDateTime) -> Unit)
 ) {
     Column(modifier = Modifier.padding(2.dp)) {
         if (visibility) {

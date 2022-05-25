@@ -8,8 +8,7 @@ import android.graphics.drawable.Drawable
 import android.net.ConnectivityManager
 import android.util.Log
 import kotlinx.coroutines.runBlocking
-import java.time.LocalDateTime
-import java.time.ZoneOffset
+import java.time.ZonedDateTime
 
 class UsageDetailsManager(
     private val packageManager: PackageManager,
@@ -34,14 +33,14 @@ class UsageDetailsManager(
         WIFI
     }
 
-    fun queryForUid(uid: Int, timeFrame: Pair<LocalDateTime, LocalDateTime>): List<NetworkStats.Bucket> {
+    fun queryForUid(uid: Int, timeFrame: Pair<ZonedDateTime, ZonedDateTime>): List<NetworkStats.Bucket> {
         Log.d("Network Usage", "timeFrame set to: ${timeFrame.first} and ${timeFrame.second}")
         val usage = runBlocking {
             networkStatsManager.queryDetailsForUid(
                 ConnectivityManager.TYPE_MOBILE,
                 null,
-                timeFrame.first.toEpochSecond(ZoneOffset.UTC)*1000,
-                timeFrame.second.toEpochSecond(ZoneOffset.UTC)*1000,
+                timeFrame.first.toEpochSecond()*1000,
+                timeFrame.second.toEpochSecond()*1000,
                 uid
             )
         }
@@ -56,13 +55,13 @@ class UsageDetailsManager(
         return r
     }
 
-    private fun calculateBuckets(timeFrame: Pair<LocalDateTime, LocalDateTime>): List<NetworkStats.Bucket> {
+    private fun calculateBuckets(timeFrame: Pair<ZonedDateTime, ZonedDateTime>): List<NetworkStats.Bucket> {
         val usage = runBlocking {
             networkStatsManager.queryDetails(
                 ConnectivityManager.TYPE_WIFI,
                 null,
-                timeFrame.first.toEpochSecond(ZoneOffset.UTC) * 1000,
-                timeFrame.second.toEpochSecond(ZoneOffset.UTC) * 1000,
+                timeFrame.first.toEpochSecond() * 1000,
+                timeFrame.second.toEpochSecond() * 1000,
             )
         }
         val r = mutableListOf<NetworkStats.Bucket>()
@@ -76,7 +75,7 @@ class UsageDetailsManager(
         return r
     }
     suspend fun getUsageByUIDAsync(
-        timeFrame: Pair<LocalDateTime, LocalDateTime>,
+        timeFrame: Pair<ZonedDateTime, ZonedDateTime>,
         networkType: NetworkType
     ): List<AppUsageInfo> {
         val r = mutableMapOf<Int, AppUsageInfo>()
@@ -87,8 +86,8 @@ class UsageDetailsManager(
                 ConnectivityManager.TYPE_WIFI
             },
             null,
-            timeFrame.first.toEpochSecond(ZoneOffset.UTC) * 1000,
-            timeFrame.second.toEpochSecond(ZoneOffset.UTC) * 1000,
+            timeFrame.first.toEpochSecond() * 1000,
+            timeFrame.second.toEpochSecond() * 1000,
         )
         val bucket = NetworkStats.Bucket()
         while (buckets.hasNextBucket()) {
@@ -144,7 +143,7 @@ class UsageDetailsManager(
     }
     
     fun getUsageByUID2(
-        timeFrame: Pair<LocalDateTime, LocalDateTime>,
+        timeFrame: Pair<ZonedDateTime, ZonedDateTime>,
         networkType: NetworkType
     ): List<AppUsageInfo> {
         val r = mutableMapOf<Int, AppUsageInfo>()
@@ -155,15 +154,34 @@ class UsageDetailsManager(
                 ConnectivityManager.TYPE_WIFI
             },
             null,
-            timeFrame.first.toEpochSecond(ZoneOffset.UTC) * 1000,
-            timeFrame.second.toEpochSecond(ZoneOffset.UTC) * 1000,
+            timeFrame.first.toEpochSecond() * 1000,
+            timeFrame.second.toEpochSecond() * 1000,
         )
         val bucket = NetworkStats.Bucket()
         while (buckets.hasNextBucket()) {
             buckets!!.getNextBucket(bucket)
 
             if (!r.containsKey(bucket.uid)) {
-                if (bucket.uid == NetworkStats.Bucket.UID_ALL  || bucket.uid == NetworkStats.Bucket.UID_TETHERING) {
+                if (bucket.uid == NetworkStats.Bucket.UID_ALL  ){
+                    r[bucket.uid] = AppUsageInfo(
+                        bucket.uid,
+                        "All",
+                        "All",
+                        bucket.txBytes,
+                        bucket.rxBytes,
+                        null
+                    )
+                    continue
+                }
+                if (bucket.uid == NetworkStats.Bucket.UID_TETHERING){
+                    r[bucket.uid] = AppUsageInfo(
+                        bucket.uid,
+                        "Tethering",
+                        "Tethering",
+                        bucket.txBytes,
+                        bucket.rxBytes,
+                        null
+                    )
                     continue
                 }
                 if (bucket.uid == NetworkStats.Bucket.UID_REMOVED) {
@@ -189,6 +207,8 @@ class UsageDetailsManager(
                     packageName,
                     PackageManager.GET_META_DATA
                 )
+
+                //TODO Move name, packageName, icon to out of class initializer
                 r[bucket.uid] = AppUsageInfo(
                     p.applicationInfo.uid,
                     packageManager.getApplicationLabel(p.applicationInfo).toString(),
@@ -206,13 +226,15 @@ class UsageDetailsManager(
             }
         }
         r[NetworkStats.Bucket.UID_REMOVED]?.icon = r[1000]?.icon
+        r[NetworkStats.Bucket.UID_TETHERING]?.icon = r[1000]?.icon
+        r[NetworkStats.Bucket.UID_ALL]?.icon = r[1000]?.icon
         val r1 = r.values.toMutableList()
         r1.sortByDescending { (it.rxBytes + it.txBytes) }
         return r1
     }
 
     fun getUsageByUID(
-        timeFrame: Pair<LocalDateTime, LocalDateTime>,
+        timeFrame: Pair<ZonedDateTime, ZonedDateTime>,
         networkType: NetworkType
     ): List<AppUsageInfo> {
         val r = mutableListOf<AppUsageInfo>()
@@ -226,8 +248,8 @@ class UsageDetailsManager(
                         ConnectivityManager.TYPE_WIFI
                     },
                     null,
-                    timeFrame.first.toEpochSecond(ZoneOffset.UTC) * 1000,
-                    timeFrame.second.toEpochSecond(ZoneOffset.UTC) * 1000,
+                    timeFrame.first.toEpochSecond() * 1000,
+                    timeFrame.second.toEpochSecond() * 1000,
                     packageManager.getPackageUid(p.packageName, 0)
                 )
             }

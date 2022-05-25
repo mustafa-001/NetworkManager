@@ -40,11 +40,12 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.networkusage.ViewModels.UsageListViewModel
 import com.example.networkusage.ui.theme.NetworkUsageTheme
 import java.text.SimpleDateFormat
 import java.time.Instant
-import java.time.LocalDateTime
-import java.time.ZoneOffset
+import java.time.ZoneId
+import java.time.ZonedDateTime
 
 
 enum class TimeFrameMode {
@@ -113,18 +114,18 @@ class MainActivity : ComponentActivity() {
         } else {
             usageListViewModel.setTime(
                 Pair(
-                    LocalDateTime.ofEpochSecond(
+                    Instant.ofEpochSecond(
                         sharedPref.getLong(
                             "start_time",
-                            Instant.now().minusMillis(1000 * 60 * 60 * 24 * 7).epochSecond
-                        ), 0, ZoneOffset.UTC
-                    ),
-                    LocalDateTime.ofEpochSecond(
+                            Instant.now().minusSeconds(60 * 60 * 24 * 7).epochSecond
+                        )
+                    ).atZone(ZoneId.systemDefault()),
+                    Instant.ofEpochSecond(
                         sharedPref.getLong(
-                            "end_time",
+                            "start_time",
                             Instant.now().epochSecond
-                        ), 0, ZoneOffset.UTC
-                    )
+                        )
+                    ).atZone(ZoneId.systemDefault()),
                 )
             )
         }
@@ -196,11 +197,11 @@ class MainActivity : ComponentActivity() {
                                     ) {
                                         putLong(
                                             "start_time",
-                                            time.first.toEpochSecond(ZoneOffset.UTC)
+                                            time.first.toEpochSecond()
                                         )
                                         putLong(
                                             "end_time",
-                                            time.second.toEpochSecond(ZoneOffset.UTC)
+                                            time.second.toEpochSecond()
                                         )
                                         apply()
                                     }
@@ -306,14 +307,14 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     fun GeneralInfoHeader(
-        timeframe: LiveData<Pair<LocalDateTime, LocalDateTime>>,
+        timeframe: LiveData<Pair<ZonedDateTime, ZonedDateTime>>,
         networkType: UsageDetailsManager.NetworkType,
         totalUsage: Pair<Long, Long>
     ) {
         Card() {
-            val time: Pair<LocalDateTime, LocalDateTime> by timeframe.observeAsState(
+            val time: Pair<ZonedDateTime, ZonedDateTime> by timeframe.observeAsState(
                 Pair(
-                    LocalDateTime.now(), LocalDateTime.now()
+                    ZonedDateTime.now(), ZonedDateTime.now()
                 )
             )
             Column {
@@ -324,8 +325,7 @@ class MainActivity : ComponentActivity() {
                         textAlign = TextAlign.End
                     )
                     Icon(
-                        painter = painterResource(id = R.drawable.ic_baseline_arrow_upward_24),
-                        contentDescription = ""
+                        painter = painterResource(id = R.drawable.ic_sharp_arrow_downward_24), contentDescription = ""
                     )
                     Icon(
                         painter = painterResource(id = R.drawable.ic_baseline_arrow_upward_24),
@@ -336,7 +336,7 @@ class MainActivity : ComponentActivity() {
                 Row(horizontalArrangement = Arrangement.SpaceAround) {
                     Text(
                         time.first.formatWithReference(
-                            LocalDateTime.now()
+                            ZonedDateTime.now()
                         ),
                         style = TextStyle(fontSize = 14.sp),
                         modifier = Modifier.padding(10.dp, 0.dp)
@@ -344,7 +344,7 @@ class MainActivity : ComponentActivity() {
                     Spacer(modifier = Modifier.weight(1f))
                     Text(
                         time.second.formatWithReference(
-                            LocalDateTime.now()
+                            ZonedDateTime.now()
                         ),
                         style = TextStyle(fontSize = 14.sp),
                         modifier = Modifier.padding(10.dp, 0.dp)
@@ -359,12 +359,14 @@ class MainActivity : ComponentActivity() {
     @Composable
     fun GeneralInfoHeaderPreview() {
         GeneralInfoHeader(
-            timeframe = MutableLiveData<Pair<LocalDateTime, LocalDateTime>>().apply{this.postValue(
-                Pair(
-                    LocalDateTime.now().minusDays(1).minusHours(4),
-                    LocalDateTime.now()
+            timeframe = MutableLiveData<Pair<ZonedDateTime, ZonedDateTime>>().apply {
+                this.postValue(
+                    Pair(
+                        ZonedDateTime.now().minusDays(1).minusHours(4),
+                        ZonedDateTime.now()
+                    )
                 )
-            )} as LiveData<Pair<LocalDateTime, LocalDateTime>>,
+            } as LiveData<Pair<ZonedDateTime, ZonedDateTime>>,
             networkType = UsageDetailsManager.NetworkType.WIFI,
             Pair(420000, 23499)
         )
@@ -455,7 +457,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun onSelectTimeFrameMode(mode: TimeFrameMode) {
-        if (mode != TimeFrameMode.CUSTOM){
+        if (mode != TimeFrameMode.CUSTOM) {
             usageListViewModel.selectPredefinedTimeFrame(mode)
         }
         with(

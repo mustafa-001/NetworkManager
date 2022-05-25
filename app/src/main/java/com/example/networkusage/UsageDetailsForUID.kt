@@ -12,56 +12,73 @@ import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.LiveData
-import java.sql.Time
 import java.time.Instant
-import java.time.LocalDateTime
+import java.time.ZoneId
 import java.time.ZoneOffset
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
 
-fun insertEmptyBuckets(
+fun toIntervals(
     buckets: List<NetworkStats.Bucket>,
-    timeFrame: Pair<LocalDateTime, LocalDateTime>
-): MutableList<UsagePoint> {
-    val timeStampDifference = 7200000 //buckets[0].endTimeStamp - buckets[0].startTimeStamp
-    var firstTimeStamp = (timeFrame.first.toEpochSecond(ZoneOffset.UTC)*1000)
-        .floorDiv(timeStampDifference) * timeStampDifference
-    val lastTimeStamp = (timeFrame.first.toEpochSecond(ZoneOffset.UTC)*1000
-        .div(timeStampDifference) + 1) * timeStampDifference
-    val bucketsToAdd = mutableListOf<UsagePoint>()
+): MutableList<UsageInterval> {
+    val bucketsToAdd = mutableListOf<UsageInterval>()
     for (b in buckets) {
         bucketsToAdd.add(
-            UsagePoint(
+            UsageInterval(
                 b.rxBytes,
                 b.txBytes,
-                LocalDateTime.ofEpochSecond(b.startTimeStamp/1000, 0, ZoneOffset.UTC),
-                LocalDateTime.ofEpochSecond(b.endTimeStamp/1000, 0, ZoneOffset.UTC)
+                Instant.ofEpochMilli(b.startTimeStamp).atZone(ZoneId.systemDefault()),
+                Instant.ofEpochMilli(b.endTimeStamp).atZone(ZoneId.systemDefault())
             )
         )
     }
+    return bucketsToAdd.apply { sortBy { it.start.toEpochSecond() } }
+}
+
+fun MutableList<UsageInterval>.fillEmptyIntervals(
+    timeFrame: Pair<ZonedDateTime, ZonedDateTime>
+): MutableList<UsageInterval> {
+
+    val timeStampDifference = 7200000000 //buckets[0].endTimeStamp - buckets[0].startTimeStamp
+    var firstTimeStamp = (timeFrame.first.toEpochSecond() * 1000)
+        .floorDiv(timeStampDifference) * timeStampDifference
+    val lastTimeStamp = (timeFrame.first.toEpochSecond() * 1000
+        .div(timeStampDifference) + 1) * timeStampDifference
     while (firstTimeStamp < lastTimeStamp) {
-        bucketsToAdd.add(
-            UsagePoint(
+        this.add(
+            UsageInterval(
                 0,
                 0,
-                LocalDateTime.ofEpochSecond(firstTimeStamp/1000, 0, ZoneOffset.UTC),
-                LocalDateTime.ofEpochSecond(firstTimeStamp/1000 + timeStampDifference, 0, ZoneOffset.UTC)
+
+                Instant.ofEpochMilli(firstTimeStamp).atZone(ZoneId.systemDefault()),
+                Instant.ofEpochMilli(firstTimeStamp + timeStampDifference).atZone(ZoneId.systemDefault()),
+//                ZonedDateTime.ofEpochSecond(
+//                    firstTimeStamp / 1000 + timeStampDifference,
+//                    0,
+//                    ZoneOffset.UTC
+                )
             )
-        )
         firstTimeStamp += timeStampDifference
     }
-    return bucketsToAdd.apply {  sortBy { it.start.toEpochSecond(ZoneOffset.UTC) }}
+    return this
 }
 
 @Composable
 fun UsageDetailsForUID(
     usageDetailsManager: UsageDetailsManager,
     uid: Int,
-    timeFrame: LiveData<Pair<LocalDateTime, LocalDateTime>>
+    timeFrame: LiveData<Pair<ZonedDateTime, ZonedDateTime>>
 ) {
-    val time by timeFrame.observeAsState(Pair(LocalDateTime.now().withDayOfYear(1), LocalDateTime.now()))
+    val time by timeFrame.observeAsState(
+        Pair(
+            ZonedDateTime.now().withDayOfYear(1),
+            ZonedDateTime.now()
+        )
+    )
     LazyColumn(content = {
         val buckets = usageDetailsManager.queryForUid(uid, time)
         item {
-            BasicPlot(points = insertEmptyBuckets(buckets, time ))
+            BasicPlot(intervals = toIntervals(buckets).fillEmptyIntervals(time))
         }
         for (bucket in buckets) {
             item {
@@ -71,16 +88,14 @@ fun UsageDetailsForUID(
                         .fillMaxWidth()
                 ) {
                     Text(
-                        text = LocalDateTime.ofInstant(
-                            Instant.ofEpochMilli(bucket.startTimeStamp),
-                            ZoneOffset.UTC
-                        ).toString(), modifier = Modifier.padding(2.dp)
+                        text =
+                            Instant.ofEpochMilli(bucket.startTimeStamp).atZone(ZoneId.systemDefault())
+                        .format(DateTimeFormatter.ISO_LOCAL_DATE_TIME), modifier = Modifier.padding(2.dp)
                     )
                     Text(
-                        text = LocalDateTime.ofInstant(
-                            Instant.ofEpochMilli(bucket.endTimeStamp),
-                            ZoneOffset.UTC
-                        ).toString(), modifier = Modifier.padding(2.dp)
+                        text =
+                            Instant.ofEpochMilli(bucket.endTimeStamp).atZone(ZoneId.systemDefault())
+                                .format(DateTimeFormatter.ISO_LOCAL_DATE_TIME), modifier = Modifier.padding(2.dp)
                     )
                     Text(
                         text = byteToStringRepresentation(bucket.rxBytes),

@@ -3,11 +3,11 @@ package com.example.networkusage
 import org.junit.Assert
 import org.junit.Before
 import org.junit.Test
-import java.time.LocalDateTime
+import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 
 class DateTimeFormatUnitTest {
-    val reference: LocalDateTime = LocalDateTime.now()
+    val reference: ZonedDateTime = ZonedDateTime.now()
 
     @Test
     fun sameDayOnlyReturnsHour() {

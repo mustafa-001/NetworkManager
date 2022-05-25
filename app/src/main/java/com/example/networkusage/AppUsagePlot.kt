@@ -1,15 +1,11 @@
 package com.example.networkusage
 
 import android.graphics.Color
-import android.graphics.Paint
-import android.util.Log
 import android.util.TypedValue
 import android.view.View
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.material.Colors
 import androidx.compose.material.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -26,23 +22,24 @@ import com.github.mikephil.charting.components.YAxis
 import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
-import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
 import com.github.mikephil.charting.formatter.ValueFormatter
-import java.time.LocalDateTime
+import java.time.Instant
+import java.time.ZoneId
+import java.time.ZonedDateTime
 import java.time.ZoneOffset
 
-data class UsagePoint(
+data class UsageInterval(
     val rxBytes: Long,
     val txBytes: Long,
-    val start: LocalDateTime,
-    val end: LocalDateTime
+    val start: ZonedDateTime,
+    val end: ZonedDateTime
 )
 
 //TODO Add a onClick callback.
 //TODO Add a zoom or sliding view.
 //TODO Make x-axis labels nice and round values. eg. 05.00 10.00
 @Composable
-fun BasicPlot(points: List<UsagePoint>) {
+fun BasicPlot(intervals: List<UsageInterval>) {
     Column {
         val onPrimaryColor = MaterialTheme.colors.onPrimary.toArgb()
         AndroidView(
@@ -53,12 +50,12 @@ fun BasicPlot(points: List<UsagePoint>) {
                 .fillMaxWidth(),
             update = { view ->
                 view.setExtraOffsets(0f, 0f, 0f, 0f)
-                val timeDifference = points.getOrNull(0).let {
+                val timeDifference = intervals.getOrNull(0).let {
                     if (it == null) {
                         0
                     } else {
-                        (it.end.toEpochSecond(ZoneOffset.UTC) - it.start.toEpochSecond(
-                            ZoneOffset.UTC
+                        (it.end.toEpochSecond() - it.start.toEpochSecond(
+
                         ))
                     }
                 }
@@ -67,34 +64,34 @@ fun BasicPlot(points: List<UsagePoint>) {
                 val txEntries = mutableListOf<Entry>()
                 var runningRx = 0f
                 var runningTx = 0f
-                points.map {
+                intervals.map {
                     runningRx += it.rxBytes.toFloat()
                     runningTx += it.rxBytes.toFloat() + it.txBytes.toFloat()
                     rxEntries.add(
                         Entry(
-                            it.start.toEpochSecond(ZoneOffset.UTC).toFloat() + timeDifference / 2,
+                            it.start.toEpochSecond().toFloat() + timeDifference / 2,
                             runningRx
                         )
                     )
                     txEntries.add(
                         Entry(
-                            it.start.toEpochSecond(ZoneOffset.UTC).toFloat() + timeDifference / 2,
+                            it.start.toEpochSecond().toFloat() + timeDifference / 2,
                             runningTx
                         )
                     )
                 }
+
                 if (txEntries.isEmpty()) {
                     val nowInEpoch =
-                        LocalDateTime.now().toEpochSecond(ZoneOffset.UTC).toFloat()
+                        ZonedDateTime.now().toEpochSecond().toFloat()
                     txEntries.add(Entry(nowInEpoch, 0f))
                     rxEntries.add(Entry(nowInEpoch, 0f))
                 }
-                if (rxEntries.last().x > LocalDateTime.now().toEpochSecond(ZoneOffset.UTC)
+                if (rxEntries.last().x > ZonedDateTime.now().toEpochSecond()
                         .toFloat()
                 ) {
-                    rxEntries.last().x = LocalDateTime.now().toEpochSecond(ZoneOffset.UTC).toFloat()
-                    txEntries.last().x = LocalDateTime.now().toEpochSecond(ZoneOffset.UTC).toFloat()
-
+                    rxEntries.last().x = ZonedDateTime.now().toEpochSecond().toFloat()
+                    txEntries.last().x = ZonedDateTime.now().toEpochSecond().toFloat()
                 }
                 view.data = LineData(
                     LineDataSet(txEntries, "Transmitted").apply {
@@ -125,12 +122,11 @@ fun BasicPlot(points: List<UsagePoint>) {
                 view.axisRight.isEnabled = false
                 view.xAxis.valueFormatter = object : ValueFormatter() {
                     override fun getFormattedValue(value: Float): String {
-                        return LocalDateTime.ofEpochSecond(
-                            (value.toLong()),
-                            0,
-                            ZoneOffset.UTC
+                        return ZonedDateTime.ofInstant(
+                            Instant.ofEpochMilli(value.toLong()),
+                            ZoneId.systemDefault()
                         ).formatWithReference(
-                            LocalDateTime.now()
+                            ZonedDateTime.now()
                         )
                     }
                 }
@@ -151,22 +147,22 @@ private fun getThemeTextColor(view: View): Int {
     return typedValue.data
 }
 
-@Preview(showBackground = true, backgroundColor = Color.BLACK.toLong())
+@Preview(showBackground = true, backgroundColor = Color.WHITE.toLong())
 @Composable
 fun BasicPlotPreview() {
-    val points = mutableListOf<UsagePoint>()
+    val points = mutableListOf<UsageInterval>()
     for (i in 10 downTo 0) {
-        val p = UsagePoint(
+        val p = UsageInterval(
             (10 - i.toLong()) * 100000,
             (9 - i.toLong()) * 20000,
-            LocalDateTime.now().minusHours((i * 2).toLong()),
-            LocalDateTime.now().minusHours(
+            ZonedDateTime.now().minusHours((i * 2).toLong()),
+            ZonedDateTime.now().minusHours(
                 (i * 2 - 2).toLong()
             )
         )
         points.add(p)
     }
     NetworkUsageTheme {
-        BasicPlot(points = points)
+        BasicPlot(intervals = points)
     }
 }

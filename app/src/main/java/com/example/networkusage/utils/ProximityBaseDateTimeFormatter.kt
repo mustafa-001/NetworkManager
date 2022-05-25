@@ -1,11 +1,9 @@
 package com.example.networkusage
 
-import java.lang.Exception
-import java.time.LocalDateTime
+import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
-import java.time.format.DateTimeFormatterBuilder
 
-fun LocalDateTime.formatWithReference(reference: LocalDateTime): String {
+fun ZonedDateTime.formatWithReference(reference: ZonedDateTime): String {
     if (reference < this) {
         throw (Exception("Earlier Reference Value"))
     } else if (reference.dayOfYear == this.dayOfYear && reference.year == this.year) {
