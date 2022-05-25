@@ -39,8 +39,8 @@ class UsageDetailsManager(
             networkStatsManager.queryDetailsForUid(
                 ConnectivityManager.TYPE_MOBILE,
                 null,
-                timeFrame.first.toEpochSecond()*1000,
-                timeFrame.second.toEpochSecond()*1000,
+                timeFrame.first.minusHours(2).toEpochSecond()*1000,
+                timeFrame.second.plusHours(2).toEpochSecond()*1000,
                 uid
             )
         }
