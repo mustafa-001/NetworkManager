@@ -18,50 +18,6 @@ import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 
-fun toIntervals(
-    buckets: List<NetworkStats.Bucket>,
-): MutableList<UsageInterval> {
-    val bucketsToAdd = mutableListOf<UsageInterval>()
-    for (b in buckets) {
-        bucketsToAdd.add(
-            UsageInterval(
-                b.rxBytes,
-                b.txBytes,
-                Instant.ofEpochMilli(b.startTimeStamp).atZone(ZoneId.systemDefault()),
-                Instant.ofEpochMilli(b.endTimeStamp).atZone(ZoneId.systemDefault())
-            )
-        )
-    }
-    return bucketsToAdd.apply { sortBy { it.start.toEpochSecond() } }
-}
-
-fun MutableList<UsageInterval>.fillEmptyIntervals(
-    timeFrame: Pair<ZonedDateTime, ZonedDateTime>
-): MutableList<UsageInterval> {
-
-    val timeStampDifference = 7200000000 //buckets[0].endTimeStamp - buckets[0].startTimeStamp
-    var firstTimeStamp = (timeFrame.first.toEpochSecond() * 1000)
-        .floorDiv(timeStampDifference) * timeStampDifference
-    val lastTimeStamp = (timeFrame.first.toEpochSecond() * 1000
-        .div(timeStampDifference) + 1) * timeStampDifference
-    while (firstTimeStamp < lastTimeStamp) {
-        this.add(
-            UsageInterval(
-                0,
-                0,
-
-                Instant.ofEpochMilli(firstTimeStamp).atZone(ZoneId.systemDefault()),
-                Instant.ofEpochMilli(firstTimeStamp + timeStampDifference).atZone(ZoneId.systemDefault()),
-//                ZonedDateTime.ofEpochSecond(
-//                    firstTimeStamp / 1000 + timeStampDifference,
-//                    0,
-//                    ZoneOffset.UTC
-                )
-            )
-        firstTimeStamp += timeStampDifference
-    }
-    return this
-}
 
 @Composable
 fun UsageDetailsForUID(
@@ -78,7 +34,7 @@ fun UsageDetailsForUID(
     LazyColumn(content = {
         val buckets = usageDetailsManager.queryForUid(uid, time)
         item {
-            BasicPlot(intervals = toIntervals(buckets).fillEmptyIntervals(time))
+            BasicPlot(UsagePlotViewModel(buckets, time).intervals)
         }
         for (bucket in buckets) {
             item {
@@ -105,12 +61,12 @@ fun UsageDetailsForUID(
                         text = byteToStringRepresentation(bucket.txBytes),
                         modifier = Modifier.padding(2.dp)
                     )
-                    Text(text = "UID: " + bucket.uid.toString(), modifier = Modifier.padding(2.dp))
-                    Text(
-                        text = "state: " + bucket.state.toString(),
-                        modifier = Modifier.padding(2.dp)
-                    )
-                    Text(text = "Tag:\t" + bucket.tag.toString(), modifier = Modifier.padding(2.dp))
+//                    Text(text = "UID: " + bucket.uid.toString(), modifier = Modifier.padding(2.dp))
+//                    Text(
+//                        text = "state: " + bucket.state.toString(),
+//                        modifier = Modifier.padding(2.dp)
+//                    )
+//                    Text(text = "Tag:\t" + bucket.tag.toString(), modifier = Modifier.padding(2.dp))
                 }
             }
         }

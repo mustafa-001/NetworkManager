@@ -42,7 +42,7 @@ class UsageListViewModel(val usageDetailsManager: UsageDetailsManager) :
         get() = mutableTimeFrame
 
     public fun setTime(value: Pair<ZonedDateTime, ZonedDateTime>) {
-        mutableTimeFrame.postValue(value)
+        mutableTimeFrame.value = value
         Log.d("Network Usage", "timeFrame set to: ${value.first} and ${value.second}")
         viewModelScope.launch(Dispatchers.IO) {
             mutableUsageByUID.postValue(usageDetailsManager.getUsageByUID2(value, networkType))

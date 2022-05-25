@@ -8,6 +8,7 @@ import android.graphics.drawable.Drawable
 import android.net.ConnectivityManager
 import android.util.Log
 import kotlinx.coroutines.runBlocking
+import java.sql.Timestamp
 import java.time.ZonedDateTime
 
 class UsageDetailsManager(
@@ -27,28 +28,45 @@ class UsageDetailsManager(
         var icon: Drawable?,
     )
 
+    data class GeneralUsageInfo(
+        var txBytes: Long,
+        var rxBytes: Long,
+        val startTimeStamp: Long,
+        val endTimeStamp: Long,
+    )
+
 
     enum class NetworkType {
         GSM,
         WIFI
     }
 
-    fun queryForUid(uid: Int, timeFrame: Pair<ZonedDateTime, ZonedDateTime>): List<NetworkStats.Bucket> {
+    fun queryForUid(
+        uid: Int,
+        timeFrame: Pair<ZonedDateTime, ZonedDateTime>
+    ): List<GeneralUsageInfo> {
         Log.d("Network Usage", "timeFrame set to: ${timeFrame.first} and ${timeFrame.second}")
         val usage = runBlocking {
             networkStatsManager.queryDetailsForUid(
                 ConnectivityManager.TYPE_MOBILE,
                 null,
-                timeFrame.first.minusHours(2).toEpochSecond()*1000,
-                timeFrame.second.plusHours(2).toEpochSecond()*1000,
+                timeFrame.first.minusHours(2).toEpochSecond() * 1000,
+                timeFrame.second.plusHours(2).toEpochSecond() * 1000,
                 uid
             )
         }
-        val r = mutableListOf<NetworkStats.Bucket>()
+        val r = mutableListOf<GeneralUsageInfo>()
         while (usage.hasNextBucket()) {
             val b = NetworkStats.Bucket()
             usage!!.getNextBucket(b)
-            r.add(b)
+            r.add(
+                GeneralUsageInfo(
+                    rxBytes = b.rxBytes,
+                    txBytes = b.txBytes,
+                    startTimeStamp = b.startTimeStamp,
+                    endTimeStamp = b.endTimeStamp
+                )
+            )
             Log.d("netUsage", b.txBytes.toString())
             Log.d("netUsage", b.rxBytes.toString())
         }
@@ -74,6 +92,7 @@ class UsageDetailsManager(
         }
         return r
     }
+
     suspend fun getUsageByUIDAsync(
         timeFrame: Pair<ZonedDateTime, ZonedDateTime>,
         networkType: NetworkType
@@ -94,7 +113,7 @@ class UsageDetailsManager(
             buckets!!.getNextBucket(bucket)
 
             if (!r.containsKey(bucket.uid)) {
-                if (bucket.uid == NetworkStats.Bucket.UID_ALL  || bucket.uid == NetworkStats.Bucket.UID_TETHERING) {
+                if (bucket.uid == NetworkStats.Bucket.UID_ALL || bucket.uid == NetworkStats.Bucket.UID_TETHERING) {
                     continue
                 }
                 if (bucket.uid == NetworkStats.Bucket.UID_REMOVED) {
@@ -141,7 +160,46 @@ class UsageDetailsManager(
         r1.sortByDescending { (it.rxBytes + it.txBytes) }
         return r1
     }
-    
+
+    fun getUsageByTime(
+        timeFrame: Pair<ZonedDateTime, ZonedDateTime>,
+        networkType: NetworkType
+    ): List<GeneralUsageInfo> {
+        val buckets = networkStatsManager.queryDetails(
+            if (networkType == NetworkType.GSM) {
+                ConnectivityManager.TYPE_MOBILE
+            } else {
+                ConnectivityManager.TYPE_WIFI
+            },
+            null,
+            timeFrame.first.toInstant().toEpochMilli(),
+            timeFrame.second.toInstant().toEpochMilli()
+        )
+        val r: MutableList<GeneralUsageInfo> = mutableListOf()
+        var lastStartTime: Long = 0
+
+        val bucket = NetworkStats.Bucket()
+        while (buckets.hasNextBucket()) {
+            buckets!!.getNextBucket(bucket)
+            if (bucket.startTimeStamp == lastStartTime) {
+                r.last().rxBytes += bucket.txBytes
+                r.last().txBytes += bucket.txBytes
+            } else if (bucket.startTimeStamp > lastStartTime) {
+                r.add(
+                    GeneralUsageInfo(
+                        rxBytes = bucket.rxBytes,
+                        txBytes = bucket.txBytes,
+                        startTimeStamp = bucket.startTimeStamp,
+                        endTimeStamp = bucket.endTimeStamp
+                    )
+                )
+                lastStartTime = bucket.startTimeStamp
+            }
+        }
+        return r
+    }
+
+
     fun getUsageByUID2(
         timeFrame: Pair<ZonedDateTime, ZonedDateTime>,
         networkType: NetworkType
@@ -162,7 +220,7 @@ class UsageDetailsManager(
             buckets!!.getNextBucket(bucket)
 
             if (!r.containsKey(bucket.uid)) {
-                if (bucket.uid == NetworkStats.Bucket.UID_ALL  ){
+                if (bucket.uid == NetworkStats.Bucket.UID_ALL) {
                     r[bucket.uid] = AppUsageInfo(
                         bucket.uid,
                         "All",
@@ -173,7 +231,7 @@ class UsageDetailsManager(
                     )
                     continue
                 }
-                if (bucket.uid == NetworkStats.Bucket.UID_TETHERING){
+                if (bucket.uid == NetworkStats.Bucket.UID_TETHERING) {
                     r[bucket.uid] = AppUsageInfo(
                         bucket.uid,
                         "Tethering",
