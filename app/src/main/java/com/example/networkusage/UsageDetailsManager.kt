@@ -200,7 +200,7 @@ class UsageDetailsManager(
     }
 
 
-    fun getUsageByUID2(
+    fun getUsageByUIDAndTime(
         timeFrame: Pair<ZonedDateTime, ZonedDateTime>,
         networkType: NetworkType
     ): List<AppUsageInfo> {

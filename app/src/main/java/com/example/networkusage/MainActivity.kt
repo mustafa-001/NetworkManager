@@ -278,6 +278,7 @@ class MainActivity : ComponentActivity() {
                                 ) { navBackStackEntry ->
                                     UsageDetailsForUID(
                                         usageDetailsManager,
+                                        packageManager,
                                         navBackStackEntry.arguments?.getInt("bucket")!!,
                                         usageListViewModel.timeFrame
                                     )
@@ -394,6 +395,9 @@ class MainActivity : ComponentActivity() {
                         networkType = viewModel.networkType,
                         totalUsage = usageTotal
                     )
+                }
+                this.item {
+                    BasicPlot(intervals = UsagePlotViewModel(viewModel.usageDetailsManager.getUsageByTime( viewModel.timeFrame.value!!, viewModel.networkType), viewModel.timeFrame.value!!).intervals)
                 }
                 this.items(it) { b ->
                     ApplicationUsageRow(usage = b)
