@@ -12,6 +12,7 @@ import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -326,7 +327,8 @@ class MainActivity : ComponentActivity() {
                         textAlign = TextAlign.End
                     )
                     Icon(
-                        painter = painterResource(id = R.drawable.ic_sharp_arrow_downward_24), contentDescription = ""
+                        painter = painterResource(id = R.drawable.ic_sharp_arrow_downward_24),
+                        contentDescription = ""
                     )
                     Icon(
                         painter = painterResource(id = R.drawable.ic_baseline_arrow_upward_24),
@@ -397,10 +399,17 @@ class MainActivity : ComponentActivity() {
                     )
                 }
                 this.item {
-                    BasicPlot(intervals = UsagePlotViewModel(viewModel.usageDetailsManager.getUsageByTime( viewModel.timeFrame.value!!, viewModel.networkType), viewModel.timeFrame.value!!).intervals)
+                    BasicPlot(
+                        intervals = UsagePlotViewModel(
+                            viewModel.usageDetailsManager.getUsageByTime(
+                                viewModel.timeFrame.value!!,
+                                viewModel.networkType
+                            ), viewModel.timeFrame.value!!
+                        ).intervals
+                    )
                 }
                 this.items(it) { b ->
-                    ApplicationUsageRow(usage = b)
+                    ApplicationUsageRow(usage = b, it[0].rxBytes + it[0].txBytes)
                 }
             }
         }
@@ -419,13 +428,13 @@ class MainActivity : ComponentActivity() {
                     rxBytes = 100003,
                     txBytes = 14334,
                     icon = null
-                )
+                ), 2000000
             )
         }
     }
 
     @Composable
-    fun ApplicationUsageRow(usage: UsageDetailsManager.AppUsageInfo) {
+    fun ApplicationUsageRow(usage: UsageDetailsManager.AppUsageInfo, biggestUsage: Long) {
         Row(
             Modifier
                 .clickable(onClick = {
@@ -445,6 +454,12 @@ class MainActivity : ComponentActivity() {
                 Text(
                     text = usage.name ?: (usage.packageName), maxLines = 1
                 )
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .background(Color.Black)) {
+                    UsageBar(rx = usage.rxBytes, tx = usage.txBytes, biggestUsage)
+                }
                 Row {
                     Text(
                         modifier = Modifier.weight(1f),
