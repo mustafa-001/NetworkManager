@@ -9,6 +9,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.networkusage.ui.theme.DownloadColor
+import com.example.networkusage.ui.theme.UploadColor
 
 @Composable
 fun UsageBar(rx: Long, tx: Long, biggestTotal: Long) {
@@ -19,7 +21,7 @@ fun UsageBar(rx: Long, tx: Long, biggestTotal: Long) {
         Modifier
             .height(10.dp)
             .fillMaxWidth()
-            .background(Color.Unspecified)
+            .background(Color.Transparent)
     ) {
         Row() {
             Box(
@@ -30,7 +32,7 @@ fun UsageBar(rx: Long, tx: Long, biggestTotal: Long) {
                             .times(fillRatio * rx / sum),
                         height = this@BoxWithConstraints.maxHeight
                     )
-                    .background(Color.Green)
+                    .background(DownloadColor)
             ) {
                 Text(text = "")
             }
@@ -42,7 +44,7 @@ fun UsageBar(rx: Long, tx: Long, biggestTotal: Long) {
                             .times(fillRatio * tx / sum),
                         height = this@BoxWithConstraints.maxHeight
                     )
-                    .background(Color.Red)
+                    .background(UploadColor)
             ) {
                 Text(text = "")
             }

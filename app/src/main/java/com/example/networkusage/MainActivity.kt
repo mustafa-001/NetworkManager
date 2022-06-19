@@ -42,6 +42,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.networkusage.ViewModels.UsageListViewModel
+import com.example.networkusage.ViewModels.UsagePlotViewModel
 import com.example.networkusage.ui.theme.NetworkUsageTheme
 import java.text.SimpleDateFormat
 import java.time.Instant
@@ -456,8 +457,7 @@ class MainActivity : ComponentActivity() {
                 )
                 Row(
                     Modifier
-                        .fillMaxWidth()
-                        .background(Color.Black)) {
+                        .fillMaxWidth()) {
                     UsageBar(rx = usage.rxBytes, tx = usage.txBytes, biggestUsage)
                 }
                 Row {

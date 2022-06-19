@@ -19,10 +19,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.LiveData
+import com.example.networkusage.ViewModels.UsagePlotViewModel
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
-import java.time.format.DateTimeFormatter
 
 
 @Composable
@@ -83,7 +83,7 @@ fun UsageDetailsForUID(
             }
         }
         buckets.forEach { it ->
-            appUsageInfo.rxBytes += it.rxBytes;
+            appUsageInfo.rxBytes += it.rxBytes
             appUsageInfo.txBytes += it.txBytes
         }
         item {
@@ -104,13 +104,13 @@ fun UsageDetailsForUID(
                     Text(
                         text =
                         Instant.ofEpochMilli(bucket.startTimeStamp).atZone(ZoneId.systemDefault())
-                            .format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+                            .formatWithReference(ZonedDateTime.now()),
                         modifier = Modifier.padding(2.dp)
                     )
                     Text(
                         text =
                         Instant.ofEpochMilli(bucket.endTimeStamp).atZone(ZoneId.systemDefault())
-                            .format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+                            .formatWithReference(ZonedDateTime.now()),
                         modifier = Modifier.padding(2.dp)
                     )
                     Text(
@@ -150,17 +150,22 @@ fun PackageInfo(usageInfo: UsageDetailsManager.AppUsageInfo) {
                 tint = Color.Unspecified
             )
         }
+        Spacer(modifier = Modifier.width(8.dp))
         Text(
+            modifier = Modifier.weight(1f),
             text = usageInfo.name ?: (usageInfo.packageName), maxLines = 1
         )
+        Spacer(modifier = Modifier.width(8.dp))
         Text(
-            modifier = Modifier.weight(1f),
-            text = "Tx: ${byteToStringRepresentation(usageInfo.txBytes)}"
-        )
-        Text(
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.width(IntrinsicSize.Max),
             text = "Rx: ${byteToStringRepresentation(usageInfo.rxBytes)}"
         )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            modifier = Modifier.width(IntrinsicSize.Max),
+            text = "Tx: ${byteToStringRepresentation(usageInfo.txBytes)}"
+        )
+
     }
 }
 
