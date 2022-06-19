@@ -123,7 +123,7 @@ fun BasicPlot(intervals: List<UsageInterval>) {
                 view.xAxis.valueFormatter = object : ValueFormatter() {
                     override fun getFormattedValue(value: Float): String {
                         return ZonedDateTime.ofInstant(
-                            Instant.ofEpochMilli(value.toLong()),
+                            Instant.ofEpochSecond(value.toLong()),
                             ZoneId.systemDefault()
                         ).formatWithReference(
                             ZonedDateTime.now()
