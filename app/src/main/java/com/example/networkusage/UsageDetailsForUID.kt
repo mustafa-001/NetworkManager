@@ -23,6 +23,7 @@ import com.example.networkusage.ViewModels.UsagePlotViewModel
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
 
 
 @Composable
@@ -94,6 +95,7 @@ fun UsageDetailsForUID(
         item {
             BasicPlot(UsagePlotViewModel(buckets, time).intervals)
         }
+        val timeFormatter = DateTimeFormatter.ofPattern("YY.MM.dd-HH.mm")
         for (bucket in buckets) {
             item {
                 Column(
@@ -101,26 +103,31 @@ fun UsageDetailsForUID(
                         .padding(8.dp)
                         .fillMaxWidth()
                 ) {
-                    Text(
-                        text =
-                        Instant.ofEpochMilli(bucket.startTimeStamp).atZone(ZoneId.systemDefault())
-                            .formatWithReference(ZonedDateTime.now()),
-                        modifier = Modifier.padding(2.dp)
-                    )
-                    Text(
-                        text =
-                        Instant.ofEpochMilli(bucket.endTimeStamp).atZone(ZoneId.systemDefault())
-                            .formatWithReference(ZonedDateTime.now()),
-                        modifier = Modifier.padding(2.dp)
-                    )
-                    Text(
-                        text = byteToStringRepresentation(bucket.rxBytes),
-                        modifier = Modifier.padding(2.dp)
-                    )
-                    Text(
-                        text = byteToStringRepresentation(bucket.txBytes),
-                        modifier = Modifier.padding(2.dp)
-                    )
+                    Row(horizontalArrangement = Arrangement.SpaceAround) {
+                        Text(
+                            text =
+                            Instant.ofEpochMilli(bucket.startTimeStamp)
+                                .atZone(ZoneId.systemDefault())
+                                .format(timeFormatter),
+                            modifier = Modifier.padding(2.dp)
+                        )
+                        Text(
+                            text =
+                            Instant.ofEpochMilli(bucket.endTimeStamp).atZone(ZoneId.systemDefault())
+                                .format(timeFormatter),
+                            modifier = Modifier.padding(2.dp)
+                        )
+                    }
+                    Row(horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(
+                            text = "Received: ${byteToStringRepresentation(bucket.rxBytes)}",
+                            modifier = Modifier.padding(2.dp)
+                        )
+                        Text(
+                            text = "Sent: ${byteToStringRepresentation(bucket.txBytes)}",
+                            modifier = Modifier.padding(2.dp)
+                        )
+                    }
 //                    Text(text = "UID: " + bucket.uid.toString(), modifier = Modifier.padding(2.dp))
 //                    Text(
 //                        text = "state: " + bucket.state.toString(),
