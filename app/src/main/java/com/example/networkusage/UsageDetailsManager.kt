@@ -10,6 +10,7 @@ import android.util.Log
 import kotlinx.coroutines.runBlocking
 import java.sql.Timestamp
 import java.time.ZonedDateTime
+import kotlin.math.log
 
 class UsageDetailsManager(
     private val packageManager: PackageManager,
@@ -216,65 +217,14 @@ class UsageDetailsManager(
             timeFrame.second.toEpochSecond() * 1000,
         )
         val bucket = NetworkStats.Bucket()
+        if (!buckets.hasNextBucket()){
+            Log.w("Network Usage", "No buckets returned from query.")
+        }
         while (buckets.hasNextBucket()) {
             buckets!!.getNextBucket(bucket)
 
             if (!r.containsKey(bucket.uid)) {
-                if (bucket.uid == NetworkStats.Bucket.UID_ALL) {
-                    r[bucket.uid] = AppUsageInfo(
-                        bucket.uid,
-                        "All",
-                        "All",
-                        bucket.txBytes,
-                        bucket.rxBytes,
-                        null
-                    )
-                    continue
-                }
-                if (bucket.uid == NetworkStats.Bucket.UID_TETHERING) {
-                    r[bucket.uid] = AppUsageInfo(
-                        bucket.uid,
-                        "Tethering",
-                        "Tethering",
-                        bucket.txBytes,
-                        bucket.rxBytes,
-                        null
-                    )
-                    continue
-                }
-                if (bucket.uid == NetworkStats.Bucket.UID_REMOVED) {
-                    r[bucket.uid] = AppUsageInfo(
-                        bucket.uid,
-                        "Removed",
-                        "Removed",
-                        bucket.txBytes,
-                        bucket.rxBytes,
-                        null
-                    )
-                    continue
-                }
-                val packageName: String = packageManager.getPackagesForUid(bucket.uid).let {
-                    if (it == null) {
-                        Log.d("NetworkUsage", "Cannot retrieve package name for uid: ${bucket.uid}")
-                        null
-                    } else {
-                        it[0]
-                    }
-                } ?: continue
-                val p = packageManager.getPackageInfo(
-                    packageName,
-                    PackageManager.GET_META_DATA
-                )
-
-                //TODO Move name, packageName, icon to out of class initializer
-                r[bucket.uid] = AppUsageInfo(
-                    p.applicationInfo.uid,
-                    packageManager.getApplicationLabel(p.applicationInfo).toString(),
-                    p.packageName,
-                    bucket.txBytes,
-                    bucket.rxBytes,
-                    p.applicationInfo.loadIcon(packageManager)
-                )
+                createNewUIDBucket(bucket, r)
             } else {
                 r[bucket.uid]!!.let {
                     it.txBytes += bucket.txBytes
@@ -289,6 +239,67 @@ class UsageDetailsManager(
         val r1 = r.values.toMutableList()
         r1.sortByDescending { (it.rxBytes + it.txBytes) }
         return r1
+    }
+
+    private fun createNewUIDBucket(
+        bucket: NetworkStats.Bucket,
+        r: MutableMap<Int, AppUsageInfo>
+    ) {
+        if (bucket.uid == NetworkStats.Bucket.UID_ALL) {
+            r[bucket.uid] = AppUsageInfo(
+                bucket.uid,
+                "All",
+                "All",
+                bucket.txBytes,
+                bucket.rxBytes,
+                null
+            )
+            return
+        }
+        if (bucket.uid == NetworkStats.Bucket.UID_TETHERING) {
+            r[bucket.uid] = AppUsageInfo(
+                bucket.uid,
+                "Tethering",
+                "Tethering",
+                bucket.txBytes,
+                bucket.rxBytes,
+                null
+            )
+            return
+        }
+        if (bucket.uid == NetworkStats.Bucket.UID_REMOVED) {
+            r[bucket.uid] = AppUsageInfo(
+                bucket.uid,
+                "Removed",
+                "Removed",
+                bucket.txBytes,
+                bucket.rxBytes,
+                null
+            )
+            return
+        }
+        val packageName: String = packageManager.getPackagesForUid(bucket.uid).let {
+            if (it == null) {
+                Log.d("NetworkUsage", "Cannot retrieve package name for uid: ${bucket.uid}")
+                null
+            } else {
+                it[0]
+            }
+        } ?: return
+        val p = packageManager.getPackageInfo(
+            packageName,
+            PackageManager.GET_META_DATA
+        )
+
+        //TODO Move name, packageName, icon to out of class initializer
+        r[bucket.uid] = AppUsageInfo(
+            p.applicationInfo.uid,
+            packageManager.getApplicationLabel(p.applicationInfo).toString(),
+            p.packageName,
+            bucket.txBytes,
+            bucket.rxBytes,
+            p.applicationInfo.loadIcon(packageManager)
+        )
     }
 
     fun getUsageByUID(
