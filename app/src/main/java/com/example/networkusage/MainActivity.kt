@@ -12,7 +12,6 @@ import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.annotation.RequiresApi
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -42,12 +41,13 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.networkusage.ViewModels.UsageListViewModel
-import com.example.networkusage.ViewModels.UsagePlotViewModel
+import com.example.networkusage.ViewModels.UsagePerUIDPlotViewModel
 import com.example.networkusage.ui.theme.NetworkUsageTheme
 import java.text.SimpleDateFormat
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
+import java.util.*
 
 
 enum class TimeFrameMode {
@@ -391,6 +391,12 @@ class MainActivity : ComponentActivity() {
                     it.map { it.txBytes }.ifEmpty { listOf(0L) }.reduce { acc, tx -> acc + tx })
             } ?: Pair(0, 0)
         buckets.value?.let {
+            val biggestUsage =
+                if (it.isEmpty()) {
+                    0
+                } else {
+                    it[0].rxBytes + it[0].txBytes
+                }
             LazyColumn {
                 this.item {
                     GeneralInfoHeader(
@@ -400,17 +406,18 @@ class MainActivity : ComponentActivity() {
                     )
                 }
                 this.item {
-                    BasicPlot(
-                        intervals = UsagePlotViewModel(
+                    BarUsagePlot(
+                        intervals = UsagePerUIDPlotViewModel(
                             viewModel.usageDetailsManager.getUsageByTime(
                                 viewModel.timeFrame.value!!,
                                 viewModel.networkType
                             ), viewModel.timeFrame.value!!
                         ).intervals
+                    , Optional.empty()
                     )
                 }
                 this.items(it) { b ->
-                    ApplicationUsageRow(usage = b, it[0].rxBytes + it[0].txBytes)
+                    UsageByPackageRow(usage = b, biggestUsage)
                 }
             }
         }
@@ -421,7 +428,7 @@ class MainActivity : ComponentActivity() {
     @Composable
     fun ApplicationUsageRowPreview() {
         NetworkUsageTheme {
-            ApplicationUsageRow(
+            UsageByPackageRow(
                 usage = UsageDetailsManager.AppUsageInfo(
                     100,
                     "Some App",
@@ -435,7 +442,7 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    fun ApplicationUsageRow(usage: UsageDetailsManager.AppUsageInfo, biggestUsage: Long) {
+    fun UsageByPackageRow(usage: UsageDetailsManager.AppUsageInfo, biggestUsage: Long) {
         Row(
             Modifier
                 .clickable(onClick = {
@@ -457,7 +464,8 @@ class MainActivity : ComponentActivity() {
                 )
                 Row(
                     Modifier
-                        .fillMaxWidth()) {
+                        .fillMaxWidth()
+                ) {
                     UsageBar(rx = usage.rxBytes, tx = usage.txBytes, biggestUsage)
                 }
                 Row {

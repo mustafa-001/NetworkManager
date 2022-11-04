@@ -6,7 +6,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
 
-class UsagePlotViewModel(
+class UsagePerUIDPlotViewModel(
     private val buckets: List<UsageDetailsManager.GeneralUsageInfo>,
     private val timeFrame: Pair<ZonedDateTime, ZonedDateTime>
 ) {
@@ -32,7 +32,7 @@ class UsagePlotViewModel(
         return bucketsToAdd.apply { sortBy { it.start.toEpochSecond() } }
     }
 
-    fun MutableList<UsageInterval>.fillEmptyIntervals(
+    private fun MutableList<UsageInterval>.fillEmptyIntervals(
         timeFrame: Pair<ZonedDateTime, ZonedDateTime>
     ): MutableList<UsageInterval> {
 

@@ -2,12 +2,16 @@ package com.example.networkusage
 
 import android.app.usage.NetworkStats
 import android.content.pm.PackageManager
+import android.util.Log
+import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.gestures.FlingBehavior
+import androidx.compose.foundation.gestures.ScrollScope
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.Icon
 import androidx.compose.material.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -19,11 +23,15 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.LiveData
-import com.example.networkusage.ViewModels.UsagePlotViewModel
+import com.example.networkusage.ViewModels.UsagePerUIDPlotViewModel
+import com.github.mikephil.charting.data.Entry
+import com.github.mikephil.charting.highlight.Highlight
+import com.github.mikephil.charting.listener.OnChartValueSelectedListener
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
+import java.util.*
 
 
 @Composable
@@ -39,6 +47,46 @@ fun UsageDetailsForUID(
             ZonedDateTime.now()
         )
     )
+
+    var selectedInterval by remember { mutableStateOf(Pair(time.first, time.second))}
+
+
+    class BarPlotTouchListener() : OnChartValueSelectedListener {
+        init {
+            Log.d(
+                "NetworkUsage", "PlotTouchListener instantiated."
+            )
+        }
+
+        /**
+         * Called when a value has been selected inside the chart.
+         *
+         * @param e The selected Entry.
+         * @param h The corresponding highlight object that contains information
+         * about the highlighted position
+         */
+        override fun onValueSelected(e: Entry?, h: Highlight?) {
+            selectedInterval =
+            Pair(ZonedDateTime.ofInstant(Instant.ofEpochSecond(h!!.x.toLong()-60*60*2), ZoneId.systemDefault()),
+                ZonedDateTime.ofInstant(Instant.ofEpochSecond(h.x.toLong()+60*60*2), ZoneId.systemDefault()))
+            Log.d(
+                "NetworkUsage", "Bar plot, a value selected" +
+                        "entry: ${e}" +
+                        "highlight: $h" +
+                        "highlight data index: ${h!!.dataIndex} " +
+                        "highlight x value: ${h.x}" +
+                        "highlight y value: ${h.y}+" +
+                        "\n ${selectedInterval.first}"
+            )
+        }
+
+        /**
+         * Called when nothing has been selected or an "un-select" has been made.
+         */
+        override fun onNothingSelected() {
+            Log.d("NetworkUsage", "Nothing selected")
+        }
+    }
     LazyColumn(content = {
         val buckets = usageDetailsManager.queryForUid(uid, time)
         val appUsageInfo: UsageDetailsManager.AppUsageInfo = when (uid) {
@@ -83,7 +131,7 @@ fun UsageDetailsForUID(
                 )
             }
         }
-        buckets.forEach { it ->
+        buckets.forEach {
             appUsageInfo.rxBytes += it.rxBytes
             appUsageInfo.txBytes += it.txBytes
         }
@@ -92,11 +140,25 @@ fun UsageDetailsForUID(
                 usageInfo = appUsageInfo
             )
         }
-        item {
-            BasicPlot(UsagePlotViewModel(buckets, time).intervals)
+        class flinger: FlingBehavior{
+            override suspend fun ScrollScope.performFling(initialVelocity: Float): Float {
+                return 1000f
+            }
+
         }
-        val timeFormatter = DateTimeFormatter.ofPattern("YY.MM.dd-HH.mm")
+        item {
+            Row(Modifier.horizontalScroll(ScrollState(0), flingBehavior = flinger()).fillMaxWidth()) {
+                val intervals = UsagePerUIDPlotViewModel(buckets, time).intervals
+                CumulativeUsageLinePlot(intervals )
+                BarUsagePlot(intervals, Optional.of(BarPlotTouchListener()))
+            }
+        }
+        val timeFormatter = DateTimeFormatter.ofPattern("dd.MM.YY-HH.mm")
         for (bucket in buckets) {
+            if (bucket.endTimeStamp / 1000 > selectedInterval.second.toEpochSecond()
+                || bucket.startTimeStamp / 1000 < selectedInterval.first.toEpochSecond()){
+                continue
+            }
             item {
                 Column(
                     Modifier
