@@ -27,6 +27,9 @@ import com.example.networkusage.ViewModels.UsagePerUIDPlotViewModel
 import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.highlight.Highlight
 import com.github.mikephil.charting.listener.OnChartValueSelectedListener
+import com.google.accompanist.pager.ExperimentalPagerApi
+import com.google.accompanist.pager.HorizontalPager
+import com.google.accompanist.pager.rememberPagerState
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
@@ -34,6 +37,7 @@ import java.time.format.DateTimeFormatter
 import java.util.*
 
 
+@OptIn(ExperimentalPagerApi::class)
 @Composable
 fun UsageDetailsForUID(
     usageDetailsManager: UsageDetailsManager,
@@ -48,45 +52,17 @@ fun UsageDetailsForUID(
         )
     )
 
-    var selectedInterval by remember { mutableStateOf(Pair(time.first, time.second))}
-
-
-    class BarPlotTouchListener() : OnChartValueSelectedListener {
-        init {
-            Log.d(
-                "NetworkUsage", "PlotTouchListener instantiated."
-            )
-        }
-
-        /**
-         * Called when a value has been selected inside the chart.
-         *
-         * @param e The selected Entry.
-         * @param h The corresponding highlight object that contains information
-         * about the highlighted position
-         */
-        override fun onValueSelected(e: Entry?, h: Highlight?) {
-            selectedInterval =
-            Pair(ZonedDateTime.ofInstant(Instant.ofEpochSecond(h!!.x.toLong()-60*60*2), ZoneId.systemDefault()),
-                ZonedDateTime.ofInstant(Instant.ofEpochSecond(h.x.toLong()+60*60*2), ZoneId.systemDefault()))
-            Log.d(
-                "NetworkUsage", "Bar plot, a value selected" +
-                        "entry: ${e}" +
-                        "highlight: $h" +
-                        "highlight data index: ${h!!.dataIndex} " +
-                        "highlight x value: ${h.x}" +
-                        "highlight y value: ${h.y}+" +
-                        "\n ${selectedInterval.first}"
-            )
-        }
-
-        /**
-         * Called when nothing has been selected or an "un-select" has been made.
-         */
-        override fun onNothingSelected() {
-            Log.d("NetworkUsage", "Nothing selected")
-        }
+    val barPlotTouchListener by remember {
+        mutableStateOf(BarPlotTouchListener())
     }
+    val selectedInterval by barPlotTouchListener.interval.observeAsState(
+        Pair(
+            ZonedDateTime.now().withDayOfYear(1),
+            ZonedDateTime.now()
+        )
+    )
+
+
     LazyColumn(content = {
         val buckets = usageDetailsManager.queryForUid(uid, time)
         val appUsageInfo: UsageDetailsManager.AppUsageInfo = when (uid) {
@@ -140,23 +116,21 @@ fun UsageDetailsForUID(
                 usageInfo = appUsageInfo
             )
         }
-        class flinger: FlingBehavior{
-            override suspend fun ScrollScope.performFling(initialVelocity: Float): Float {
-                return 1000f
-            }
-
-        }
         item {
-            Row(Modifier.horizontalScroll(ScrollState(0), flingBehavior = flinger()).fillMaxWidth()) {
-                val intervals = UsagePerUIDPlotViewModel(buckets, time).intervals
-                CumulativeUsageLinePlot(intervals )
-                BarUsagePlot(intervals, Optional.of(BarPlotTouchListener()))
+            val intervals = UsagePerUIDPlotViewModel(buckets, time).intervals
+            HorizontalPager(count = 2) { page ->
+                if (page == 0) {
+                    BarUsagePlot(intervals, Optional.of(barPlotTouchListener))
+                } else if (page == 1) {
+                    CumulativeUsageLinePlot(intervals)
+                }
             }
         }
         val timeFormatter = DateTimeFormatter.ofPattern("dd.MM.YY-HH.mm")
         for (bucket in buckets) {
             if (bucket.endTimeStamp / 1000 > selectedInterval.second.toEpochSecond()
-                || bucket.startTimeStamp / 1000 < selectedInterval.first.toEpochSecond()){
+                || bucket.startTimeStamp / 1000 < selectedInterval.first.toEpochSecond()
+            ) {
                 continue
             }
             item {
@@ -190,12 +164,6 @@ fun UsageDetailsForUID(
                             modifier = Modifier.padding(2.dp)
                         )
                     }
-//                    Text(text = "UID: " + bucket.uid.toString(), modifier = Modifier.padding(2.dp))
-//                    Text(
-//                        text = "state: " + bucket.state.toString(),
-//                        modifier = Modifier.padding(2.dp)
-//                    )
-//                    Text(text = "Tag:\t" + bucket.tag.toString(), modifier = Modifier.padding(2.dp))
                 }
             }
         }

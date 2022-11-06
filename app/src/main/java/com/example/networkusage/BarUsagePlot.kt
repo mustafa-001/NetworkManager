@@ -42,7 +42,7 @@ data class UsageInterval(
 //TODO Make x-axis labels nice and round values. eg. 05.00 10.00
 @Composable
 fun BarUsagePlot(intervals: List<UsageInterval>, touchListener: Optional<OnChartValueSelectedListener>) {
-    Column(Modifier.requiredWidth(500.dp)) {
+    Column {
         val onPrimaryColor = MaterialTheme.colors.onPrimary.toArgb()
         AndroidView(
             modifier = Modifier

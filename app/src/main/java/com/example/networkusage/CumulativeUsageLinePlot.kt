@@ -6,6 +6,7 @@ import android.view.View
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.material.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -26,21 +27,13 @@ import com.github.mikephil.charting.formatter.ValueFormatter
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
-import java.time.ZoneOffset
-
-data class UsageInterval(
-    val rxBytes: Long,
-    val txBytes: Long,
-    val start: ZonedDateTime,
-    val end: ZonedDateTime
-)
 
 //TODO Add a onClick callback.
 //TODO Add a zoom or sliding view.
 //TODO Make x-axis labels nice and round values. eg. 05.00 10.00
 @Composable
-fun BasicPlot(intervals: List<UsageInterval>) {
-    Column {
+fun CumulativeUsageLinePlot(intervals: List<UsageInterval>) {
+    Column() {
         val onPrimaryColor = MaterialTheme.colors.onPrimary.toArgb()
         AndroidView(
             factory = { context ->
@@ -163,6 +156,6 @@ fun BasicPlotPreview() {
         points.add(p)
     }
     NetworkUsageTheme {
-        BasicPlot(intervals = points)
+        CumulativeUsageLinePlot(intervals = points)
     }
 }

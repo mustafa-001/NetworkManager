@@ -3,7 +3,7 @@ plugins {
     id 'org.jetbrains.kotlin.android'
 }
 android {
-    compileSdk 31
+    compileSdk 33
 
     defaultConfig {
         applicationId "com.example.networkusage"
@@ -56,4 +56,5 @@ dependencies {
     androidTestImplementation "androidx.compose.ui:ui-test-junit4:$compose_version"
     debugImplementation "androidx.compose.ui:ui-tooling:$compose_version"
     implementation 'com.github.PhilJay:MPAndroidChart:v3.1.0'
+    implementation("com.google.accompanist:accompanist-pager:0.27.0")
 }
