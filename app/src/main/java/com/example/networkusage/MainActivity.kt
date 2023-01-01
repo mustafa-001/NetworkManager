@@ -41,7 +41,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.networkusage.ViewModels.UsageListViewModel
-import com.example.networkusage.ViewModels.UsagePerUIDPlotViewModel
+import com.example.networkusage.ViewModels.BarPlotIntervalListViewModel
 import com.example.networkusage.ui.theme.NetworkUsageTheme
 import java.text.SimpleDateFormat
 import java.time.Instant
@@ -278,7 +278,7 @@ class MainActivity : ComponentActivity() {
                                         type = NavType.IntType
                                     })
                                 ) { navBackStackEntry ->
-                                    UsageDetailsForUID(
+                                    UsageDetailsForPackage(
                                         usageDetailsManager,
                                         packageManager,
                                         navBackStackEntry.arguments?.getInt("bucket")!!,
@@ -387,8 +387,12 @@ class MainActivity : ComponentActivity() {
         val buckets = viewModel.usageByUID.observeAsState()
         val usageTotal: Pair<Long, Long> =
             buckets.value?.let { it ->
-                Pair(it.map { it.rxBytes }.ifEmpty { listOf(0L) }.reduce { acc, rx -> acc + rx },
-                    it.map { it.txBytes }.ifEmpty { listOf(0L) }.reduce { acc, tx -> acc + tx })
+                Pair(it.map { it.rxBytes }
+                        .ifEmpty { listOf(0L) }
+                        .reduce { acc, rx -> acc + rx },
+                    it.map { it.txBytes }
+                        .ifEmpty { listOf(0L) }
+                        .reduce { acc, tx -> acc + tx })
             } ?: Pair(0, 0)
         buckets.value?.let {
             val biggestUsage =
@@ -405,15 +409,21 @@ class MainActivity : ComponentActivity() {
                         totalUsage = usageTotal
                     )
                 }
+                val timeframe = viewModel.timeFrame.value!!
                 this.item {
+                    val barPlotIntervalListViewModel = BarPlotIntervalListViewModel(
+                        viewModel.usageDetailsManager.getUsageByTime(
+                            timeframe,
+                            viewModel.networkType
+                        ), timeframe
+                    )
+                    val intervals = when {
+                        timeframe.first.plusDays(7).isAfter(timeframe.second) -> barPlotIntervalListViewModel.intervals
+                        else -> barPlotIntervalListViewModel.groupedByDay()
+
+                    }
                     BarUsagePlot(
-                        intervals = UsagePerUIDPlotViewModel(
-                            viewModel.usageDetailsManager.getUsageByTime(
-                                viewModel.timeFrame.value!!,
-                                viewModel.networkType
-                            ), viewModel.timeFrame.value!!
-                        ).intervals
-                    , Optional.empty()
+                        intervals = intervals, Optional.empty()
                     )
                 }
                 this.items(it) { b ->

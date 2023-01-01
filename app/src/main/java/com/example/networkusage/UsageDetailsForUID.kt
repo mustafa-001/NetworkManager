@@ -2,11 +2,6 @@ package com.example.networkusage
 
 import android.app.usage.NetworkStats
 import android.content.pm.PackageManager
-import android.util.Log
-import androidx.compose.foundation.ScrollState
-import androidx.compose.foundation.gestures.FlingBehavior
-import androidx.compose.foundation.gestures.ScrollScope
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.Icon
@@ -23,13 +18,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.LiveData
-import com.example.networkusage.ViewModels.UsagePerUIDPlotViewModel
-import com.github.mikephil.charting.data.Entry
-import com.github.mikephil.charting.highlight.Highlight
-import com.github.mikephil.charting.listener.OnChartValueSelectedListener
+import com.example.networkusage.ViewModels.BarPlotIntervalListViewModel
 import com.google.accompanist.pager.ExperimentalPagerApi
 import com.google.accompanist.pager.HorizontalPager
-import com.google.accompanist.pager.rememberPagerState
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
@@ -39,13 +30,13 @@ import java.util.*
 
 @OptIn(ExperimentalPagerApi::class)
 @Composable
-fun UsageDetailsForUID(
+fun UsageDetailsForPackage(
     usageDetailsManager: UsageDetailsManager,
     packageManager: PackageManager,
     uid: Int,
     timeFrame: LiveData<Pair<ZonedDateTime, ZonedDateTime>>
 ) {
-    val time by timeFrame.observeAsState(
+    val timeframe by timeFrame.observeAsState(
         Pair(
             ZonedDateTime.now().withDayOfYear(1),
             ZonedDateTime.now()
@@ -64,7 +55,7 @@ fun UsageDetailsForUID(
 
 
     LazyColumn(content = {
-        val buckets = usageDetailsManager.queryForUid(uid, time)
+        val buckets = usageDetailsManager.queryForUid(uid, timeframe)
         val appUsageInfo: UsageDetailsManager.AppUsageInfo = when (uid) {
             NetworkStats.Bucket.UID_ALL -> {
                 UsageDetailsManager.AppUsageInfo(
@@ -112,17 +103,24 @@ fun UsageDetailsForUID(
             appUsageInfo.txBytes += it.txBytes
         }
         item {
-            PackageInfo(
+            PackageUsageInfoHeader(
                 usageInfo = appUsageInfo
             )
         }
         item {
-            val intervals = UsagePerUIDPlotViewModel(buckets, time).intervals
+            val barPlotIntervalListViewModel = BarPlotIntervalListViewModel(buckets, timeframe)
+            val barPlotIntervals = when {
+                timeframe.first.plusDays(7)
+                    .isAfter(timeframe.second) -> barPlotIntervalListViewModel.intervals
+                else -> {
+                    barPlotIntervalListViewModel.groupedByDay()
+                }
+            }
             HorizontalPager(count = 2) { page ->
                 if (page == 0) {
-                    BarUsagePlot(intervals, Optional.of(barPlotTouchListener))
+                    BarUsagePlot(barPlotIntervals, Optional.of(barPlotTouchListener))
                 } else if (page == 1) {
-                    CumulativeUsageLinePlot(intervals)
+                    CumulativeUsageLinePlot(barPlotIntervalListViewModel.intervals)
                 }
             }
         }
@@ -134,37 +132,7 @@ fun UsageDetailsForUID(
                 continue
             }
             item {
-                Column(
-                    Modifier
-                        .padding(8.dp)
-                        .fillMaxWidth()
-                ) {
-                    Row(horizontalArrangement = Arrangement.SpaceAround) {
-                        Text(
-                            text =
-                            Instant.ofEpochMilli(bucket.startTimeStamp)
-                                .atZone(ZoneId.systemDefault())
-                                .format(timeFormatter),
-                            modifier = Modifier.padding(2.dp)
-                        )
-                        Text(
-                            text =
-                            Instant.ofEpochMilli(bucket.endTimeStamp).atZone(ZoneId.systemDefault())
-                                .format(timeFormatter),
-                            modifier = Modifier.padding(2.dp)
-                        )
-                    }
-                    Row(horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(
-                            text = "Received: ${byteToStringRepresentation(bucket.rxBytes)}",
-                            modifier = Modifier.padding(2.dp)
-                        )
-                        Text(
-                            text = "Sent: ${byteToStringRepresentation(bucket.txBytes)}",
-                            modifier = Modifier.padding(2.dp)
-                        )
-                    }
-                }
+                BucketDetailsRow(bucket, timeFormatter)
             }
         }
     }
@@ -172,7 +140,59 @@ fun UsageDetailsForUID(
 }
 
 @Composable
-fun PackageInfo(usageInfo: UsageDetailsManager.AppUsageInfo) {
+fun BucketDetailsRow(
+    bucket: UsageDetailsManager.GeneralUsageInfo,
+    timeFormatter: DateTimeFormatter
+) {
+    Column(
+        Modifier
+            .padding(7.dp)
+            .fillMaxWidth()
+    ) {
+        Row(horizontalArrangement = Arrangement.SpaceAround) {
+            Text(
+                text =
+                Instant.ofEpochMilli(bucket.startTimeStamp)
+                    .atZone(ZoneId.systemDefault())
+                    .format(timeFormatter),
+                modifier = Modifier.padding(1.dp)
+            )
+            Text(
+                text =
+                Instant.ofEpochMilli(bucket.endTimeStamp).atZone(ZoneId.systemDefault())
+                    .format(timeFormatter),
+                modifier = Modifier.padding(1.dp)
+            )
+        }
+        Row(horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(
+                text = "Received: ${byteToStringRepresentation(bucket.rxBytes)}",
+                modifier = Modifier.padding(1.dp)
+            )
+            Text(
+                text = "Sent: ${byteToStringRepresentation(bucket.txBytes)}",
+                modifier = Modifier.padding(1.dp)
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun IntervalUsageInfoPreview() {
+    val bucket = UsageDetailsManager.GeneralUsageInfo(
+        10000,
+        100000,
+        ZonedDateTime.now().minusDays(2).toEpochSecond(),
+        ZonedDateTime.now().toEpochSecond()
+    )
+    val timeFormatter = DateTimeFormatter.ofPattern("dd.MM.YY-HH.mm")
+    BucketDetailsRow(bucket, timeFormatter)
+}
+
+
+@Composable
+fun PackageUsageInfoHeader(usageInfo: UsageDetailsManager.AppUsageInfo) {
     Row() {
 
         if (usageInfo.icon == null) {
@@ -209,7 +229,7 @@ fun PackageInfo(usageInfo: UsageDetailsManager.AppUsageInfo) {
 @Preview(showBackground = true)
 @Composable
 fun PackageInfoPreview() {
-    PackageInfo(
+    PackageUsageInfoHeader(
         usageInfo = UsageDetailsManager.AppUsageInfo(
             100,
             "Android",

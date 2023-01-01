@@ -1,19 +1,52 @@
 package com.example.networkusage.ViewModels
 
+import android.util.Log
 import com.example.networkusage.UsageDetailsManager
 import com.example.networkusage.UsageInterval
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
 
-class UsagePerUIDPlotViewModel(
+class BarPlotIntervalListViewModel(
     private val buckets: List<UsageDetailsManager.GeneralUsageInfo>,
     private val timeFrame: Pair<ZonedDateTime, ZonedDateTime>
 ) {
-    val intervals: List<UsageInterval>
-        get() {
-            return toIntervals(buckets).fillEmptyIntervals(timeFrame)
+    val intervals: List<UsageInterval> = toIntervals(buckets).fillEmptyIntervals(timeFrame)
+
+    fun groupedByDay(): List<UsageInterval> {
+
+        if (intervals.isEmpty()) {
+            Log.d("NetworkUsage", "UsageInterval list given to groupByDay is empty.")
+            return listOf(
+                UsageInterval(
+                    0,
+                    0,
+                    ZonedDateTime.now().withDayOfMonth(1),
+                    ZonedDateTime.now()
+                )
+            )
         }
+        val newIntervalList = mutableListOf<UsageInterval>()
+        var currentDay = intervals.first().start
+
+        val groupedIntervals = intervals.groupBy { it.start.dayOfYear }
+            .values
+        for (group in groupedIntervals) {
+            val dailyRxBytes: Long = group.map { it.rxBytes }.reduce { acc, it -> acc + it }
+            val dailyTxBytes: Long = group.map { it.txBytes }.reduce { acc, it -> acc + it }
+            Log.d(
+                "NetworkUsage",
+                "Grouping ${group.size} elements belonging to day ${group.first().start} \t Rx: $dailyRxBytes, Tx: $dailyTxBytes"
+            )
+            newIntervalList.add(
+                UsageInterval(
+                    dailyRxBytes,
+                    dailyTxBytes, group.first().start, group.last().end
+                )
+            )
+        }
+        return newIntervalList
+    }
 
     private fun toIntervals(
         buckets: List<UsageDetailsManager.GeneralUsageInfo>,
