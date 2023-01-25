@@ -2,7 +2,6 @@ package com.example.networkusage
 
 import android.app.AppOpsManager
 import android.app.usage.NetworkStats
-import android.app.usage.NetworkStatsManager
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
@@ -43,11 +42,15 @@ import androidx.navigation.navArgument
 import com.example.networkusage.ViewModels.UsageListViewModel
 import com.example.networkusage.ViewModels.BarPlotIntervalListViewModel
 import com.example.networkusage.ui.theme.NetworkUsageTheme
+import com.example.networkusage.usage_details_processor.UsageDetailsProcessorInterface
+import com.example.networkusage.usage_details_processor.NetworkType
+import com.example.networkusage.usage_details_processor.UsageDetailsProcessorWithTestData
 import java.text.SimpleDateFormat
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.util.*
+import com.example.networkusage.usage_details_processor.AppUsageInfo as AppUsageInfo1
 
 
 enum class TimeFrameMode {
@@ -62,9 +65,8 @@ class MainActivity : ComponentActivity() {
     @RequiresApi(Build.VERSION_CODES.P)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val usageDetailsManager = UsageDetailsManager(
-            packageManager = packageManager,
-            networkStatsManager = getSystemService(Context.NETWORK_STATS_SERVICE) as NetworkStatsManager
+        val usageDetailsManager: UsageDetailsProcessorInterface = UsageDetailsProcessorWithTestData(
+            packageManager = packageManager
         )
 
         sharedPref = application.applicationContext.getSharedPreferences(
@@ -104,10 +106,10 @@ class MainActivity : ComponentActivity() {
         usageListViewModel = UsageListViewModel(
             usageDetailsManager
         )
-        usageListViewModel.networkType = UsageDetailsManager.NetworkType.valueOf(
+        usageListViewModel.networkType = NetworkType.valueOf(
             sharedPref.getString(
                 "networkType",
-                UsageDetailsManager.NetworkType.GSM.name
+                NetworkType.GSM.name
             )!!
         )
         val timeFrameMode = TimeFrameMode.valueOf(sharedPref.getString("mode", "CUSTOM")!!)
@@ -138,12 +140,12 @@ class MainActivity : ComponentActivity() {
                     TopAppBar() {
                         Text("Network Stats")
                         IconButton(onClick = {
-                            if (usageListViewModel.networkType == UsageDetailsManager.NetworkType.WIFI) {
+                            if (usageListViewModel.networkType == NetworkType.WIFI) {
                                 usageListViewModel.networkType =
-                                    UsageDetailsManager.NetworkType.GSM
+                                    NetworkType.GSM
                             } else {
                                 usageListViewModel.networkType =
-                                    UsageDetailsManager.NetworkType.WIFI
+                                    NetworkType.WIFI
                             }
                             with(
                                 this@MainActivity.getSharedPreferences(
@@ -156,7 +158,7 @@ class MainActivity : ComponentActivity() {
                             }
                         }) {
                             if (usageListViewModel.networkType ==
-                                UsageDetailsManager.NetworkType.WIFI
+                                NetworkType.WIFI
                             ) {
                                 Icon(
                                     painter = painterResource(id = R.drawable.ic_baseline_wifi_24),
@@ -311,7 +313,7 @@ class MainActivity : ComponentActivity() {
     @Composable
     fun GeneralInfoHeader(
         timeframe: LiveData<Pair<ZonedDateTime, ZonedDateTime>>,
-        networkType: UsageDetailsManager.NetworkType,
+        networkType: NetworkType,
         totalUsage: Pair<Long, Long>
     ) {
         Card() {
@@ -371,7 +373,7 @@ class MainActivity : ComponentActivity() {
                     )
                 )
             } as LiveData<Pair<ZonedDateTime, ZonedDateTime>>,
-            networkType = UsageDetailsManager.NetworkType.WIFI,
+            networkType = NetworkType.WIFI,
             Pair(420000, 23499)
         )
     }
@@ -412,7 +414,7 @@ class MainActivity : ComponentActivity() {
                 val timeframe = viewModel.timeFrame.value!!
                 this.item {
                     val barPlotIntervalListViewModel = BarPlotIntervalListViewModel(
-                        viewModel.usageDetailsManager.getUsageByTime(
+                        viewModel.usageDetailsManager.getUsageGroupedByTime(
                             timeframe,
                             viewModel.networkType
                         ), timeframe
@@ -439,7 +441,7 @@ class MainActivity : ComponentActivity() {
     fun ApplicationUsageRowPreview() {
         NetworkUsageTheme {
             UsageByPackageRow(
-                usage = UsageDetailsManager.AppUsageInfo(
+                usage = AppUsageInfo1(
                     100,
                     "Some App",
                     "com.package.someapp",
@@ -452,7 +454,7 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    fun UsageByPackageRow(usage: UsageDetailsManager.AppUsageInfo, biggestUsage: Long) {
+    fun UsageByPackageRow(usage: AppUsageInfo1, biggestUsage: Long) {
         Row(
             Modifier
                 .clickable(onClick = {

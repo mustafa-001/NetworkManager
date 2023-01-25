@@ -1,48 +1,24 @@
-package com.example.networkusage
+package com.example.networkusage.usage_details_processor
 
 import android.app.usage.NetworkStats
 import android.app.usage.NetworkStatsManager
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
-import android.graphics.drawable.Drawable
 import android.net.ConnectivityManager
 import android.util.Log
 import kotlinx.coroutines.runBlocking
-import java.sql.Timestamp
 import java.time.ZonedDateTime
-import kotlin.math.log
 
-class UsageDetailsManager(
+class UsageDetailsProcessor(
     private val packageManager: PackageManager,
     private val networkStatsManager: NetworkStatsManager
-) {
+) : UsageDetailsProcessorInterface {
 
     private val packages: List<PackageInfo> =
         packageManager.getInstalledPackages(PackageManager.GET_META_DATA)
 
-    data class AppUsageInfo(
-        val uid: Int,
-        val name: String?,
-        val packageName: String,
-        var txBytes: Long,
-        var rxBytes: Long,
-        var icon: Drawable?,
-    )
 
-    data class GeneralUsageInfo(
-        var txBytes: Long,
-        var rxBytes: Long,
-        val startTimeStamp: Long,
-        val endTimeStamp: Long,
-    )
-
-
-    enum class NetworkType {
-        GSM,
-        WIFI
-    }
-
-    fun queryForUid(
+    override fun getUsageByUIDGroupedByTime(
         uid: Int,
         timeFrame: Pair<ZonedDateTime, ZonedDateTime>
     ): List<GeneralUsageInfo> {
@@ -162,7 +138,7 @@ class UsageDetailsManager(
         return r1
     }
 
-    fun getUsageByTime(
+    override fun getUsageGroupedByTime(
         timeFrame: Pair<ZonedDateTime, ZonedDateTime>,
         networkType: NetworkType
     ): List<GeneralUsageInfo> {
@@ -201,7 +177,7 @@ class UsageDetailsManager(
     }
 
 
-    fun getUsageByUIDAndTime(
+    override fun getUsageGroupedByUID(
         timeFrame: Pair<ZonedDateTime, ZonedDateTime>,
         networkType: NetworkType
     ): List<AppUsageInfo> {
@@ -217,7 +193,7 @@ class UsageDetailsManager(
             timeFrame.second.toEpochSecond() * 1000,
         )
         val bucket = NetworkStats.Bucket()
-        if (!buckets.hasNextBucket()){
+        if (!buckets.hasNextBucket()) {
             Log.w("Network Usage", "No buckets returned from query.")
         }
         while (buckets.hasNextBucket()) {
@@ -300,52 +276,5 @@ class UsageDetailsManager(
             bucket.rxBytes,
             p.applicationInfo.loadIcon(packageManager)
         )
-    }
-
-    fun getUsageByUID(
-        timeFrame: Pair<ZonedDateTime, ZonedDateTime>,
-        networkType: NetworkType
-    ): List<AppUsageInfo> {
-        val r = mutableListOf<AppUsageInfo>()
-        val packagesToRemove = mutableListOf<PackageInfo>()
-        for (p in packages) {
-            val usage = runBlocking {
-                networkStatsManager.queryDetailsForUid(
-                    if (networkType == NetworkType.GSM) {
-                        ConnectivityManager.TYPE_MOBILE
-                    } else {
-                        ConnectivityManager.TYPE_WIFI
-                    },
-                    null,
-                    timeFrame.first.toEpochSecond() * 1000,
-                    timeFrame.second.toEpochSecond() * 1000,
-                    packageManager.getPackageUid(p.packageName, 0)
-                )
-            }
-            var rxBytes: Long = 0
-            var txBytes: Long = 0
-            val bucket = NetworkStats.Bucket()
-            while (usage.hasNextBucket()) {
-                usage!!.getNextBucket(bucket)
-                rxBytes += bucket.rxBytes
-                txBytes += bucket.txBytes
-                if (usage.hasNextBucket()) {
-                    Log.d("usage", "multiple buckets ${bucket.rxBytes}")
-                }
-            }
-            r.add(
-                AppUsageInfo(
-                    p.applicationInfo.uid,
-                    packageManager.getApplicationLabel(p.applicationInfo).toString(),
-                    p.packageName,
-                    txBytes,
-                    rxBytes,
-                    p.applicationInfo.loadIcon(packageManager)
-                )
-            )
-            Log.d("NetworkUsage", "AppUsageInfo: ${p.packageName}: $rxBytes")
-        }
-        r.sortByDescending { (it.rxBytes + it.txBytes) }
-        return r
     }
 }

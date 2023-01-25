@@ -19,6 +19,9 @@ import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.LiveData
 import com.example.networkusage.ViewModels.BarPlotIntervalListViewModel
+import com.example.networkusage.usage_details_processor.AppUsageInfo
+import com.example.networkusage.usage_details_processor.GeneralUsageInfo
+import com.example.networkusage.usage_details_processor.UsageDetailsProcessorInterface
 import com.google.accompanist.pager.ExperimentalPagerApi
 import com.google.accompanist.pager.HorizontalPager
 import java.time.Instant
@@ -31,7 +34,7 @@ import java.util.*
 @OptIn(ExperimentalPagerApi::class)
 @Composable
 fun UsageDetailsForPackage(
-    usageDetailsManager: UsageDetailsManager,
+    usageDetailsManager: UsageDetailsProcessorInterface,
     packageManager: PackageManager,
     uid: Int,
     timeFrame: LiveData<Pair<ZonedDateTime, ZonedDateTime>>
@@ -55,10 +58,10 @@ fun UsageDetailsForPackage(
 
 
     LazyColumn(content = {
-        val buckets = usageDetailsManager.queryForUid(uid, timeframe)
-        val appUsageInfo: UsageDetailsManager.AppUsageInfo = when (uid) {
+        val buckets = usageDetailsManager.getUsageByUIDGroupedByTime(uid, timeframe)
+        val appUsageInfo: AppUsageInfo = when (uid) {
             NetworkStats.Bucket.UID_ALL -> {
-                UsageDetailsManager.AppUsageInfo(
+                AppUsageInfo(
                     uid,
                     "All",
                     "All",
@@ -67,7 +70,7 @@ fun UsageDetailsForPackage(
                 )
             }
             NetworkStats.Bucket.UID_TETHERING -> {
-                UsageDetailsManager.AppUsageInfo(
+                AppUsageInfo(
                     uid,
                     "Tethering",
                     "Tethering",
@@ -76,7 +79,7 @@ fun UsageDetailsForPackage(
                 )
             }
             NetworkStats.Bucket.UID_REMOVED -> {
-                UsageDetailsManager.AppUsageInfo(
+                AppUsageInfo(
                     uid,
                     "Removed",
                     "Removed",
@@ -89,7 +92,7 @@ fun UsageDetailsForPackage(
                     packageManager.getPackagesForUid(uid)!![0],
                     PackageManager.GET_META_DATA
                 )
-                UsageDetailsManager.AppUsageInfo(
+                AppUsageInfo(
                     uid,
                     packageManager.getApplicationLabel(p.applicationInfo).toString(),
                     p.packageName,
@@ -141,7 +144,7 @@ fun UsageDetailsForPackage(
 
 @Composable
 fun BucketDetailsRow(
-    bucket: UsageDetailsManager.GeneralUsageInfo,
+    bucket: GeneralUsageInfo,
     timeFormatter: DateTimeFormatter
 ) {
     Column(
@@ -180,7 +183,7 @@ fun BucketDetailsRow(
 @Preview(showBackground = true)
 @Composable
 fun IntervalUsageInfoPreview() {
-    val bucket = UsageDetailsManager.GeneralUsageInfo(
+    val bucket = GeneralUsageInfo(
         10000,
         100000,
         ZonedDateTime.now().minusDays(2).toEpochSecond(),
@@ -192,7 +195,7 @@ fun IntervalUsageInfoPreview() {
 
 
 @Composable
-fun PackageUsageInfoHeader(usageInfo: UsageDetailsManager.AppUsageInfo) {
+fun PackageUsageInfoHeader(usageInfo: AppUsageInfo) {
     Row() {
 
         if (usageInfo.icon == null) {
@@ -230,7 +233,7 @@ fun PackageUsageInfoHeader(usageInfo: UsageDetailsManager.AppUsageInfo) {
 @Composable
 fun PackageInfoPreview() {
     PackageUsageInfoHeader(
-        usageInfo = UsageDetailsManager.AppUsageInfo(
+        usageInfo = AppUsageInfo(
             100,
             "Android",
             "com.android",

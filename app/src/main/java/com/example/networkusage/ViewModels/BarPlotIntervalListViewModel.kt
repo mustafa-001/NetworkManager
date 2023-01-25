@@ -1,14 +1,14 @@
 package com.example.networkusage.ViewModels
 
 import android.util.Log
-import com.example.networkusage.UsageDetailsManager
 import com.example.networkusage.UsageInterval
+import com.example.networkusage.usage_details_processor.GeneralUsageInfo
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
 
 class BarPlotIntervalListViewModel(
-    private val buckets: List<UsageDetailsManager.GeneralUsageInfo>,
+    private val buckets: List<GeneralUsageInfo>,
     private val timeFrame: Pair<ZonedDateTime, ZonedDateTime>
 ) {
     val intervals: List<UsageInterval> = toIntervals(buckets).fillEmptyIntervals(timeFrame)
@@ -49,7 +49,7 @@ class BarPlotIntervalListViewModel(
     }
 
     private fun toIntervals(
-        buckets: List<UsageDetailsManager.GeneralUsageInfo>,
+        buckets: List<GeneralUsageInfo>,
     ): MutableList<UsageInterval> {
         val bucketsToAdd = mutableListOf<UsageInterval>()
         for (b in buckets) {

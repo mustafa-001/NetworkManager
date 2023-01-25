@@ -6,15 +6,18 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.networkusage.TimeFrameMode
-import com.example.networkusage.UsageDetailsManager
-import kotlinx.coroutines.*
+import com.example.networkusage.usage_details_processor.AppUsageInfo
+import com.example.networkusage.usage_details_processor.UsageDetailsProcessorInterface
+import com.example.networkusage.usage_details_processor.NetworkType
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.time.ZonedDateTime
 
-class UsageListViewModel(val usageDetailsManager: UsageDetailsManager) :
+class UsageListViewModel(val usageDetailsManager: UsageDetailsProcessorInterface) :
     ViewModel() {
 
 
-    var networkType = UsageDetailsManager.NetworkType.GSM
+    var networkType = NetworkType.GSM
         set(value) {
             field = value
             //The viewmodel not yet initialized, so change didn't come from user input, no need to query.
@@ -22,7 +25,7 @@ class UsageListViewModel(val usageDetailsManager: UsageDetailsManager) :
 
                 viewModelScope.launch(Dispatchers.IO) {
                     mutableUsageByUID.postValue(
-                        usageDetailsManager.getUsageByUIDAndTime(
+                        usageDetailsManager.getUsageGroupedByUID(
                             timeFrame.value!!,
                             networkType
                         )
@@ -31,9 +34,9 @@ class UsageListViewModel(val usageDetailsManager: UsageDetailsManager) :
             }
         }
 
-    private val mutableUsageByUID: MutableLiveData<List<UsageDetailsManager.AppUsageInfo>> =
+    private val mutableUsageByUID: MutableLiveData<List<AppUsageInfo>> =
         MutableLiveData(emptyList())
-    val usageByUID: LiveData<List<UsageDetailsManager.AppUsageInfo>>
+    val usageByUID: LiveData<List<AppUsageInfo>>
     get() =  mutableUsageByUID
 
     private val mutableTimeFrame = MutableLiveData<Pair<ZonedDateTime, ZonedDateTime>>()
@@ -41,11 +44,11 @@ class UsageListViewModel(val usageDetailsManager: UsageDetailsManager) :
     val timeFrame: LiveData<Pair<ZonedDateTime, ZonedDateTime>>
         get() = mutableTimeFrame
 
-    public fun setTime(value: Pair<ZonedDateTime, ZonedDateTime>) {
+    fun setTime(value: Pair<ZonedDateTime, ZonedDateTime>) {
         mutableTimeFrame.value = value
         Log.d("Network Usage", "timeFrame set to: ${value.first} and ${value.second}")
         viewModelScope.launch(Dispatchers.IO) {
-            mutableUsageByUID.postValue(usageDetailsManager.getUsageByUIDAndTime(value, networkType))
+            mutableUsageByUID.postValue(usageDetailsManager.getUsageGroupedByUID(value, networkType))
         }
     }
 
