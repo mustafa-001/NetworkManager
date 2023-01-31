@@ -12,11 +12,13 @@ import java.time.ZonedDateTime
 
 class BarPlotTouchListener() : OnChartValueSelectedListener {
     private val intervalMutable =
-        MutableLiveData(Pair(
-            ZonedDateTime.now().withDayOfYear(1),
-            ZonedDateTime.now()
-        ))
-   val interval = intervalMutable as LiveData<Pair<ZonedDateTime, ZonedDateTime>>
+        MutableLiveData(
+            Pair(
+                ZonedDateTime.ofInstant(Instant.EPOCH, ZoneId.systemDefault()),
+                ZonedDateTime.ofInstant(Instant.now(), ZoneId.systemDefault())
+            )
+        )
+    val interval = intervalMutable as LiveData<Pair<ZonedDateTime, ZonedDateTime>>
 
     /**
      * Called when a value has been selected inside the chart.
@@ -52,6 +54,14 @@ class BarPlotTouchListener() : OnChartValueSelectedListener {
      * Called when nothing has been selected or an "un-select" has been made.
      */
     override fun onNothingSelected() {
-        Log.d("NetworkUsage", "Nothing selected")
+        intervalMutable.value =
+            Pair(
+                ZonedDateTime.ofInstant(Instant.EPOCH, ZoneId.systemDefault()),
+                ZonedDateTime.ofInstant(Instant.now(), ZoneId.systemDefault())
+            )
+        Log.d(
+            "NetworkUsage", "Bar plot selected value \"un-selected\", " +
+                    "selected interval resetted to maximum range."
+        )
     }
 }
