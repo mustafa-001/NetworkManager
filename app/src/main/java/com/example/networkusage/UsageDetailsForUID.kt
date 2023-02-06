@@ -56,8 +56,15 @@ fun UsageDetailsForPackage(
         )
     )
 
+    val isNeedGrouping by remember(timeframe.first, timeframe.second) {
+        mutableStateOf(
+            !timeframe.first.plusDays(7)
+                .isAfter(timeframe.second)
+        )
+    }
 
-    LazyColumn(content = {
+
+    LazyColumn {
         val buckets = usageDetailsManager.getUsageByUIDGroupedByTime(uid, timeframe)
         val appUsageInfo: AppUsageInfo = when (uid) {
             NetworkStats.Bucket.UID_ALL -> {
@@ -110,14 +117,13 @@ fun UsageDetailsForPackage(
                 usageInfo = appUsageInfo
             )
         }
+
         item {
             val barPlotIntervalListViewModel = BarPlotIntervalListViewModel(buckets, timeframe)
-            val barPlotIntervals = when {
-                timeframe.first.plusDays(7)
-                    .isAfter(timeframe.second) -> barPlotIntervalListViewModel.intervals
-                else -> {
-                    barPlotIntervalListViewModel.groupedByDay()
-                }
+            val barPlotIntervals = if (isNeedGrouping)
+                barPlotIntervalListViewModel.groupedByDay()
+            else {
+                barPlotIntervalListViewModel.intervals
             }
             HorizontalPager(count = 2) { page ->
                 if (page == 0) {
@@ -129,17 +135,27 @@ fun UsageDetailsForPackage(
         }
         val timeFormatter = DateTimeFormatter.ofPattern("dd.MM.YY-HH.mm")
         for (bucket in buckets) {
-            if (bucket.endTimeStamp / 1000 > selectedInterval.second.toEpochSecond()
-                || bucket.startTimeStamp / 1000 < selectedInterval.first.toEpochSecond()
+            val bucketStart = ZonedDateTime.ofInstant(
+                Instant.ofEpochSecond(bucket.startTimeStamp / 1000),
+                ZoneId.systemDefault()
+            )
+            if ((selectedInterval.first.isBefore(
+                    ZonedDateTime.of(
+                        1980, 1, 1, 1, 1, 1, 0, ZoneId.systemDefault()
+                    )
+                ) ||
+                        bucket.endTimeStamp / 1000 < selectedInterval.second.toEpochSecond()
+                        && bucket.startTimeStamp / 1000 > selectedInterval.first.toEpochSecond()
+                        ) ||
+                (isNeedGrouping &&
+                        bucketStart.dayOfYear == selectedInterval.first.dayOfYear)
             ) {
-                continue
-            }
-            item {
-                BucketDetailsRow(bucket, timeFormatter)
+                item {
+                    BucketDetailsRow(bucket, timeFormatter)
+                }
             }
         }
     }
-    )
 }
 
 @Composable
