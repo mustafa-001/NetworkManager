@@ -17,27 +17,41 @@ class UsageListViewModel(val usageDetailsManager: UsageDetailsProcessorInterface
     ViewModel() {
 
 
-    var networkType = NetworkType.GSM
-        set(value) {
-            field = value
-            //The viewmodel not yet initialized, so change didn't come from user input, no need to query.
-            if (timeFrame.value != null) {
+    private val _networkType = MutableLiveData(NetworkType.WIFI)
+    val networkType: LiveData<NetworkType>
+        get() = _networkType
 
-                viewModelScope.launch(Dispatchers.IO) {
-                    mutableUsageByUID.postValue(
-                        usageDetailsManager.getUsageGroupedByUID(
-                            timeFrame.value!!,
-                            networkType
-                        )
+    fun changeNetworkType(value: NetworkType){
+        _networkType.value = value
+    }
+
+    fun toggleNetworkType() {
+        //Async postValue() causes race condition when saving networkType to SharedPreferences in
+        // network selector icon/button onClick() callback.
+        _networkType.value = if (networkType.value == NetworkType.WIFI) {
+            NetworkType.GSM
+        } else {
+            NetworkType.WIFI
+        }
+
+        //The viewmodel not yet initialized, so change didn't come from user input, no need to query.
+        if (timeFrame.value != null) {
+
+            viewModelScope.launch(Dispatchers.IO) {
+                mutableUsageByUID.postValue(
+                    usageDetailsManager.getUsageGroupedByUID(
+                        timeFrame.value!!,
+                        networkType.value!!
                     )
-                }
+                )
             }
         }
+    }
 
     private val mutableUsageByUID: MutableLiveData<List<AppUsageInfo>> =
         MutableLiveData(emptyList())
     val usageByUID: LiveData<List<AppUsageInfo>>
-    get() =  mutableUsageByUID
+        get() = mutableUsageByUID
 
     private val mutableTimeFrame = MutableLiveData<Pair<ZonedDateTime, ZonedDateTime>>()
 
@@ -48,7 +62,12 @@ class UsageListViewModel(val usageDetailsManager: UsageDetailsProcessorInterface
         mutableTimeFrame.value = value
         Log.d("Network Usage", "timeFrame set to: ${value.first} and ${value.second}")
         viewModelScope.launch(Dispatchers.IO) {
-            mutableUsageByUID.postValue(usageDetailsManager.getUsageGroupedByUID(value, networkType))
+            mutableUsageByUID.postValue(
+                usageDetailsManager.getUsageGroupedByUID(
+                    value,
+                    networkType.value!!
+                )
+            )
         }
     }
 

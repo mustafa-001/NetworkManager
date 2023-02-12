@@ -106,11 +106,13 @@ class MainActivity : ComponentActivity() {
         usageListViewModel = UsageListViewModel(
             usageDetailsManager
         )
-        usageListViewModel.networkType = NetworkType.valueOf(
-            sharedPref.getString(
-                "networkType",
-                NetworkType.GSM.name
-            )!!
+        usageListViewModel.changeNetworkType(
+            NetworkType.valueOf(
+                sharedPref.getString(
+                    "networkType",
+                    NetworkType.GSM.name
+                )!!
+            )
         )
         val timeFrameMode = TimeFrameMode.valueOf(sharedPref.getString("mode", "CUSTOM")!!)
         if (timeFrameMode != TimeFrameMode.CUSTOM) {
@@ -137,28 +139,22 @@ class MainActivity : ComponentActivity() {
         setContent {
             Scaffold(
                 topBar = {
-                    TopAppBar() {
+                    TopAppBar {
                         Text("Network Stats")
+                        val networkType by usageListViewModel.networkType.observeAsState()
                         IconButton(onClick = {
-                            if (usageListViewModel.networkType == NetworkType.WIFI) {
-                                usageListViewModel.networkType =
-                                    NetworkType.GSM
-                            } else {
-                                usageListViewModel.networkType =
-                                    NetworkType.WIFI
-                            }
+                            usageListViewModel.toggleNetworkType()
                             with(
                                 this@MainActivity.getSharedPreferences(
                                     this@MainActivity.getString(R.string.prefence_file_key),
                                     Context.MODE_PRIVATE
                                 ).edit()
                             ) {
-                                putString("networkType", usageListViewModel.networkType.name)
+                                putString("networkType", networkType!!.name)
                                 apply()
                             }
                         }) {
-                            if (usageListViewModel.networkType ==
-                                NetworkType.WIFI
+                            if (networkType == NetworkType.WIFI
                             ) {
                                 Icon(
                                     painter = painterResource(id = R.drawable.ic_baseline_wifi_24),
@@ -390,12 +386,13 @@ class MainActivity : ComponentActivity() {
         val usageTotal: Pair<Long, Long> =
             buckets.value?.let { it ->
                 Pair(it.map { it.rxBytes }
-                        .ifEmpty { listOf(0L) }
-                        .reduce { acc, rx -> acc + rx },
+                    .ifEmpty { listOf(0L) }
+                    .reduce { acc, rx -> acc + rx },
                     it.map { it.txBytes }
                         .ifEmpty { listOf(0L) }
                         .reduce { acc, tx -> acc + tx })
             } ?: Pair(0, 0)
+        val networkType by viewModel.networkType.observeAsState()
         buckets.value?.let {
             val biggestUsage =
                 if (it.isEmpty()) {
@@ -407,7 +404,7 @@ class MainActivity : ComponentActivity() {
                 this.item {
                     GeneralInfoHeader(
                         timeframe = viewModel.timeFrame,
-                        networkType = viewModel.networkType,
+                        networkType = networkType!!,
                         totalUsage = usageTotal
                     )
                 }
@@ -416,11 +413,12 @@ class MainActivity : ComponentActivity() {
                     val barPlotIntervalListViewModel = BarPlotIntervalListViewModel(
                         viewModel.usageDetailsManager.getUsageGroupedByTime(
                             timeframe,
-                            viewModel.networkType
+                            networkType!!
                         ), timeframe
                     )
                     val intervals = when {
-                        timeframe.first.plusDays(7).isAfter(timeframe.second) -> barPlotIntervalListViewModel.intervals
+                        timeframe.first.plusDays(7)
+                            .isAfter(timeframe.second) -> barPlotIntervalListViewModel.intervals
                         else -> barPlotIntervalListViewModel.groupedByDay()
 
                     }
