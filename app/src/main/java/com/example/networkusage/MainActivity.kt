@@ -45,6 +45,7 @@ import com.example.networkusage.ui.theme.NetworkUsageTheme
 import com.example.networkusage.usage_details_processor.UsageDetailsProcessorInterface
 import com.example.networkusage.usage_details_processor.NetworkType
 import com.example.networkusage.usage_details_processor.UsageDetailsProcessorWithTestData
+import com.github.mikephil.charting.data.BarEntry
 import java.text.SimpleDateFormat
 import java.time.Instant
 import java.time.ZoneId
@@ -410,12 +411,12 @@ class MainActivity : ComponentActivity() {
                 }
                 val timeframe = viewModel.timeFrame.value!!
                 this.item {
-                    val barPlotIntervalListViewModel = BarPlotIntervalListViewModel(
+                    val barPlotIntervalListViewModel by remember(timeframe) { mutableStateOf( BarPlotIntervalListViewModel(
                         viewModel.usageDetailsManager.getUsageGroupedByTime(
                             timeframe,
                             networkType!!
                         ), timeframe
-                    )
+                    ))}
                     val intervals = when {
                         timeframe.first.plusDays(7)
                             .isAfter(timeframe.second) -> barPlotIntervalListViewModel.intervals
@@ -423,7 +424,7 @@ class MainActivity : ComponentActivity() {
 
                     }
                     BarUsagePlot(
-                        intervals = intervals, Optional.empty()
+                        intervals = intervals, Optional.empty(), BarEntryXAxisLabelFormatter { -> intervals }
                     )
                 }
                 this.items(it) { b ->

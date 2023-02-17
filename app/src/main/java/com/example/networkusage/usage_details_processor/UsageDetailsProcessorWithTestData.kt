@@ -26,7 +26,10 @@ class UsageDetailsProcessorWithTestData(
                     random.nextLong(512) * 1024,
                     random.nextLong(512) * 1024,
                     next2HourIntervalStart.toInstant().toEpochMilli(),
-                    next2HourIntervalStart.plusHours(2).toInstant().toEpochMilli()
+                    when (next2HourIntervalStart.plusHours(3).isAfter(ZonedDateTime.now())){
+                        false -> next2HourIntervalStart.plusHours(2).toInstant().toEpochMilli()
+                        true -> ZonedDateTime.now().toInstant().toEpochMilli()
+                    }
                 )
             )
             next2HourIntervalStart = next2HourIntervalStart.plusHours(2)
@@ -48,7 +51,10 @@ class UsageDetailsProcessorWithTestData(
                     random.nextLong(1024 ) * 1024,
                     random.nextLong(1024 ) * 1024,
                     next2HourIntervalStart.toInstant().toEpochMilli(),
-                    next2HourIntervalStart.plusHours(2).toInstant().toEpochMilli()
+                    when (next2HourIntervalStart.plusHours(3).isAfter(ZonedDateTime.now())){
+                        false -> next2HourIntervalStart.plusHours(2).toInstant().toEpochMilli()
+                        true -> ZonedDateTime.now().toInstant().toEpochMilli()
+                    }
                 )
             )
             next2HourIntervalStart = next2HourIntervalStart.plusHours(2)

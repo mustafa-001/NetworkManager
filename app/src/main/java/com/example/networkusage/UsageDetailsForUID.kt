@@ -127,7 +127,7 @@ fun UsageDetailsForPackage(
             }
             HorizontalPager(count = 2) { page ->
                 if (page == 0) {
-                    BarUsagePlot(barPlotIntervals, Optional.of(barPlotTouchListener))
+                    BarUsagePlot(barPlotIntervals, Optional.of(barPlotTouchListener), BarEntryXAxisLabelFormatter({ -> barPlotIntervals}))
                 } else if (page == 1) {
                     CumulativeUsageLinePlot(barPlotIntervalListViewModel.intervals)
                 }
