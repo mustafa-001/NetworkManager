@@ -49,11 +49,10 @@ fun UsageDetailsForPackage(
     val barPlotTouchListener by remember {
         mutableStateOf(BarPlotTouchListener())
     }
-    val selectedInterval by barPlotTouchListener.interval.observeAsState(
-        Pair(
-            ZonedDateTime.now().withDayOfYear(1),
-            ZonedDateTime.now()
-        )
+    //Reset selected interval before redrawing this composable.
+    barPlotTouchListener.onNothingSelected()
+    val selectedIntervalIndex by barPlotTouchListener.intervalIndex.observeAsState(
+        Optional.empty()
     )
 
     val isNeedGrouping by remember(timeframe.first, timeframe.second) {
@@ -117,17 +116,24 @@ fun UsageDetailsForPackage(
                 usageInfo = appUsageInfo
             )
         }
-
+        val barPlotIntervalListViewModel = BarPlotIntervalListViewModel(buckets, timeframe)
+        val barPlotIntervals = if (isNeedGrouping)
+            barPlotIntervalListViewModel.groupedByDay()
+        else {
+            barPlotIntervalListViewModel.intervals
+        }
+        val selectedUsageInterval = barPlotIntervals[selectedIntervalIndex.orElse(0)]
+        val selectedInterval = Pair(
+            selectedUsageInterval.start, selectedUsageInterval.end
+        )
         item {
-            val barPlotIntervalListViewModel = BarPlotIntervalListViewModel(buckets, timeframe)
-            val barPlotIntervals = if (isNeedGrouping)
-                barPlotIntervalListViewModel.groupedByDay()
-            else {
-                barPlotIntervalListViewModel.intervals
-            }
             HorizontalPager(count = 2) { page ->
                 if (page == 0) {
-                    BarUsagePlot(barPlotIntervals, Optional.of(barPlotTouchListener), BarEntryXAxisLabelFormatter({ -> barPlotIntervals}))
+                    BarUsagePlot(
+                        barPlotIntervals,
+                        Optional.of(barPlotTouchListener),
+                        BarEntryXAxisLabelFormatter({ -> barPlotIntervals })
+                    )
                 } else if (page == 1) {
                     CumulativeUsageLinePlot(barPlotIntervalListViewModel.intervals)
                 }
@@ -139,16 +145,9 @@ fun UsageDetailsForPackage(
                 Instant.ofEpochSecond(bucket.startTimeStamp / 1000),
                 ZoneId.systemDefault()
             )
-            if ((selectedInterval.first.isBefore(
-                    ZonedDateTime.of(
-                        1980, 1, 1, 1, 1, 1, 0, ZoneId.systemDefault()
-                    )
-                ) ||
-                        bucket.endTimeStamp / 1000 < selectedInterval.second.toEpochSecond()
-                        && bucket.startTimeStamp / 1000 > selectedInterval.first.toEpochSecond()
-                        ) ||
-                (isNeedGrouping &&
-                        bucketStart.dayOfYear == selectedInterval.first.dayOfYear)
+            if (!selectedIntervalIndex.isPresent() ||
+                (bucket.endTimeStamp / 1000 <= selectedInterval.second.toEpochSecond()
+                        && bucket.startTimeStamp / 1000 >= selectedInterval.first.toEpochSecond())
             ) {
                 item {
                     BucketDetailsRow(bucket, timeFormatter)

@@ -6,19 +6,15 @@ import androidx.lifecycle.MutableLiveData
 import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.highlight.Highlight
 import com.github.mikephil.charting.listener.OnChartValueSelectedListener
-import java.time.Instant
-import java.time.ZoneId
-import java.time.ZonedDateTime
+import java.util.Optional
+import kotlin.math.roundToInt
 
 class BarPlotTouchListener() : OnChartValueSelectedListener {
-    private val intervalMutable =
+    private val intervalIndexMutable =
         MutableLiveData(
-            Pair(
-                ZonedDateTime.ofInstant(Instant.EPOCH, ZoneId.systemDefault()),
-                ZonedDateTime.ofInstant(Instant.now(), ZoneId.systemDefault())
-            )
+            Optional.empty<Int>()
         )
-    val interval = intervalMutable as LiveData<Pair<ZonedDateTime, ZonedDateTime>>
+    val intervalIndex = intervalIndexMutable as LiveData<Optional<Int>>
 
     /**
      * Called when a value has been selected inside the chart.
@@ -28,25 +24,14 @@ class BarPlotTouchListener() : OnChartValueSelectedListener {
      * about the highlighted position
      */
     override fun onValueSelected(e: Entry?, h: Highlight?) {
-        intervalMutable.value =
-            Pair(
-                ZonedDateTime.ofInstant(
-                    Instant.ofEpochSecond(h!!.x.toLong() - 60 * 60 * 2),
-                    ZoneId.systemDefault()
-                ),
-                ZonedDateTime.ofInstant(
-                    Instant.ofEpochSecond(h.x.toLong() + 60 * 60 * 2),
-                    ZoneId.systemDefault()
-                )
-            )
+        intervalIndexMutable.value = Optional.of(e!!.x.roundToInt())
         Log.d(
             "NetworkUsage", "Bar plot, a value selected" +
                     "entry: ${e}" +
                     "highlight: $h" +
                     "highlight data index: ${h!!.dataIndex} " +
                     "highlight x value: ${h.x}" +
-                    "highlight y value: ${h.y}+" +
-                    "\n ${interval.value!!.first}"
+                    "highlight y value: ${h.y}+"
         )
     }
 
@@ -54,11 +39,7 @@ class BarPlotTouchListener() : OnChartValueSelectedListener {
      * Called when nothing has been selected or an "un-select" has been made.
      */
     override fun onNothingSelected() {
-        intervalMutable.value =
-            Pair(
-                ZonedDateTime.ofInstant(Instant.EPOCH, ZoneId.systemDefault()),
-                ZonedDateTime.ofInstant(Instant.now(), ZoneId.systemDefault())
-            )
+        intervalIndexMutable.value = Optional.empty()
         Log.d(
             "NetworkUsage", "Bar plot selected value \"un-selected\", " +
                     "selected interval resetted to maximum range."
