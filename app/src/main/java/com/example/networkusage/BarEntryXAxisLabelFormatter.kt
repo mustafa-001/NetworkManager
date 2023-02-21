@@ -12,7 +12,7 @@ class BarEntryXAxisLabelFormatter(val intervalCallback: () -> List<UsageInterval
     override fun getFormattedValue(value: Float): String {
         //Barchart calls this function when determining size. When x-axis range change it calls this
         // function with older max value. bug?
-        if (value >= intervalCallback().size){
+        if (value.roundToInt() >= intervalCallback().size){
             return ""
         }
         val interval = intervalCallback()[value.roundToInt()]

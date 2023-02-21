@@ -2,6 +2,7 @@ package com.example.networkusage
 
 import android.app.AppOpsManager
 import android.app.usage.NetworkStats
+import android.app.usage.NetworkStatsManager
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
@@ -39,13 +40,12 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.example.networkusage.ViewModels.UsageListViewModel
 import com.example.networkusage.ViewModels.BarPlotIntervalListViewModel
+import com.example.networkusage.ViewModels.UsageListViewModel
 import com.example.networkusage.ui.theme.NetworkUsageTheme
-import com.example.networkusage.usage_details_processor.UsageDetailsProcessorInterface
 import com.example.networkusage.usage_details_processor.NetworkType
-import com.example.networkusage.usage_details_processor.UsageDetailsProcessorWithTestData
-import com.github.mikephil.charting.data.BarEntry
+import com.example.networkusage.usage_details_processor.UsageDetailsProcessor
+import com.example.networkusage.usage_details_processor.UsageDetailsProcessorInterface
 import java.text.SimpleDateFormat
 import java.time.Instant
 import java.time.ZoneId
@@ -66,8 +66,9 @@ class MainActivity : ComponentActivity() {
     @RequiresApi(Build.VERSION_CODES.P)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val usageDetailsManager: UsageDetailsProcessorInterface = UsageDetailsProcessorWithTestData(
-            packageManager = packageManager
+        val usageDetailsManager: UsageDetailsProcessorInterface = UsageDetailsProcessor(
+            packageManager = packageManager,
+            networkStatsManager = getSystemService(NETWORK_STATS_SERVICE) as NetworkStatsManager
         )
 
         sharedPref = application.applicationContext.getSharedPreferences(
@@ -278,10 +279,9 @@ class MainActivity : ComponentActivity() {
                                     })
                                 ) { navBackStackEntry ->
                                     UsageDetailsForPackage(
-                                        usageDetailsManager,
+                                        usageListViewModel,
                                         packageManager,
                                         navBackStackEntry.arguments?.getInt("bucket")!!,
-                                        usageListViewModel.timeFrame
                                     )
                                 }
                             }

@@ -17,11 +17,11 @@ import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
-import androidx.lifecycle.LiveData
 import com.example.networkusage.ViewModels.BarPlotIntervalListViewModel
+import com.example.networkusage.ViewModels.UsageDetailsForUIDViewModel
+import com.example.networkusage.ViewModels.UsageListViewModel
 import com.example.networkusage.usage_details_processor.AppUsageInfo
 import com.example.networkusage.usage_details_processor.GeneralUsageInfo
-import com.example.networkusage.usage_details_processor.UsageDetailsProcessorInterface
 import com.google.accompanist.pager.ExperimentalPagerApi
 import com.google.accompanist.pager.HorizontalPager
 import java.time.Instant
@@ -34,18 +34,19 @@ import java.util.*
 @OptIn(ExperimentalPagerApi::class)
 @Composable
 fun UsageDetailsForPackage(
-    usageDetailsManager: UsageDetailsProcessorInterface,
+    usageListViewModel: UsageListViewModel,
     packageManager: PackageManager,
     uid: Int,
-    timeFrame: LiveData<Pair<ZonedDateTime, ZonedDateTime>>
 ) {
-    val timeframe by timeFrame.observeAsState(
-        Pair(
-            ZonedDateTime.now().withDayOfYear(1),
-            ZonedDateTime.now()
-        )
-    )
 
+    val timeframe by usageListViewModel.timeFrame.observeAsState(usageListViewModel.timeFrame.value!!)
+    val usageDetailsForUIDViewModel = remember {
+        UsageDetailsForUIDViewModel(
+            uid,
+            usageListViewModel
+        )
+    }
+    val buckets by usageDetailsForUIDViewModel.usageByUIDGroupedByTime.observeAsState(emptyList())
     val barPlotTouchListener by remember {
         mutableStateOf(BarPlotTouchListener())
     }
@@ -64,7 +65,6 @@ fun UsageDetailsForPackage(
 
 
     LazyColumn {
-        val buckets = usageDetailsManager.getUsageByUIDGroupedByTime(uid, timeframe)
         val appUsageInfo: AppUsageInfo = when (uid) {
             NetworkStats.Bucket.UID_ALL -> {
                 AppUsageInfo(
@@ -122,10 +122,14 @@ fun UsageDetailsForPackage(
         else {
             barPlotIntervalListViewModel.intervals
         }
-        val selectedUsageInterval = barPlotIntervals[selectedIntervalIndex.orElse(0)]
-        val selectedInterval = Pair(
-            selectedUsageInterval.start, selectedUsageInterval.end
-        )
+
+        val selectedInterval = if (barPlotIntervals.isEmpty() || selectedIntervalIndex.isPresent.not()){
+            Optional.empty<Pair<ZonedDateTime, ZonedDateTime>>()
+        } else {
+            val usageInterval = barPlotIntervals[selectedIntervalIndex.get()]
+            Optional.of(Pair(usageInterval.start, usageInterval.end))
+        }
+
         item {
             HorizontalPager(count = 2) { page ->
                 if (page == 0) {
@@ -141,13 +145,11 @@ fun UsageDetailsForPackage(
         }
         val timeFormatter = DateTimeFormatter.ofPattern("dd.MM.YY-HH.mm")
         for (bucket in buckets) {
-            val bucketStart = ZonedDateTime.ofInstant(
-                Instant.ofEpochSecond(bucket.startTimeStamp / 1000),
-                ZoneId.systemDefault()
-            )
-            if (!selectedIntervalIndex.isPresent() ||
-                (bucket.endTimeStamp / 1000 <= selectedInterval.second.toEpochSecond()
-                        && bucket.startTimeStamp / 1000 >= selectedInterval.first.toEpochSecond())
+
+//            val bucketsStart =
+            if (selectedInterval.isPresent.not() ||
+                (bucket.endTimeStamp / 1000 <= selectedInterval.get().first.toEpochSecond()
+                        && bucket.startTimeStamp / 1000 >= selectedInterval.get().first.toEpochSecond())
             ) {
                 item {
                     BucketDetailsRow(bucket, timeFormatter)

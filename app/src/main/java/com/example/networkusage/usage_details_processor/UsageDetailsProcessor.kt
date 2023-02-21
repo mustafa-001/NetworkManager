@@ -35,7 +35,7 @@ class UsageDetailsProcessor(
         val r = mutableListOf<GeneralUsageInfo>()
         while (usage.hasNextBucket()) {
             val b = NetworkStats.Bucket()
-            usage!!.getNextBucket(b)
+            usage.getNextBucket(b)
             r.add(
                 GeneralUsageInfo(
                     rxBytes = b.rxBytes,
