@@ -6,22 +6,19 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.networkusage.TimeFrameMode
-import com.example.networkusage.usage_details_processor.AppUsageInfo
-import com.example.networkusage.usage_details_processor.UsageDetailsProcessorInterface
 import com.example.networkusage.usage_details_processor.NetworkType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.time.ZonedDateTime
 
-class UsageListViewModel(val usageDetailsManager: UsageDetailsProcessorInterface) :
-    ViewModel() {
+class CommonTopbarParametersViewModel() : ViewModel() {
 
 
     private val _networkType = MutableLiveData(NetworkType.WIFI)
     val networkType: LiveData<NetworkType>
         get() = _networkType
 
-    fun changeNetworkType(value: NetworkType){
+    fun changeNetworkType(value: NetworkType) {
         _networkType.value = value
     }
 
@@ -33,42 +30,15 @@ class UsageListViewModel(val usageDetailsManager: UsageDetailsProcessorInterface
         } else {
             NetworkType.WIFI
         }
-
-        //The viewmodel not yet initialized, so change didn't come from user input, no need to query.
-        if (timeFrame.value != null) {
-
-            viewModelScope.launch(Dispatchers.IO) {
-                mutableUsageByUID.postValue(
-                    usageDetailsManager.getUsageGroupedByUID(
-                        timeFrame.value!!,
-                        networkType.value!!
-                    )
-                )
-            }
-        }
     }
 
-    private val mutableUsageByUID: MutableLiveData<List<AppUsageInfo>> =
-        MutableLiveData(emptyList())
-    val usageByUID: LiveData<List<AppUsageInfo>>
-        get() = mutableUsageByUID
-
-    private val mutableTimeFrame = MutableLiveData<Pair<ZonedDateTime, ZonedDateTime>>()
-
+    private val _timeFrame = MutableLiveData<Pair<ZonedDateTime, ZonedDateTime>>()
     val timeFrame: LiveData<Pair<ZonedDateTime, ZonedDateTime>>
-        get() = mutableTimeFrame
+        get() = _timeFrame
 
     fun setTime(value: Pair<ZonedDateTime, ZonedDateTime>) {
-        mutableTimeFrame.value = value
+        _timeFrame.value = value
         Log.d("Network Usage", "timeFrame set to: ${value.first} and ${value.second}")
-        viewModelScope.launch(Dispatchers.IO) {
-            mutableUsageByUID.postValue(
-                usageDetailsManager.getUsageGroupedByUID(
-                    value,
-                    networkType.value!!
-                )
-            )
-        }
     }
 
 

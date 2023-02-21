@@ -2,6 +2,7 @@ package com.example.networkusage
 
 import android.app.usage.NetworkStats
 import android.content.pm.PackageManager
+import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.Icon
@@ -18,10 +19,11 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import com.example.networkusage.ViewModels.BarPlotIntervalListViewModel
+import com.example.networkusage.ViewModels.CommonTopbarParametersViewModel
 import com.example.networkusage.ViewModels.UsageDetailsForUIDViewModel
-import com.example.networkusage.ViewModels.UsageListViewModel
 import com.example.networkusage.usage_details_processor.AppUsageInfo
 import com.example.networkusage.usage_details_processor.GeneralUsageInfo
+import com.example.networkusage.usage_details_processor.UsageDetailsProcessorInterface
 import com.google.accompanist.pager.ExperimentalPagerApi
 import com.google.accompanist.pager.HorizontalPager
 import java.time.Instant
@@ -34,16 +36,18 @@ import java.util.*
 @OptIn(ExperimentalPagerApi::class)
 @Composable
 fun UsageDetailsForPackage(
-    usageListViewModel: UsageListViewModel,
+    commonTopbarParametersViewModel: CommonTopbarParametersViewModel,
     packageManager: PackageManager,
     uid: Int,
+    usageDetailsProcessor: UsageDetailsProcessorInterface
 ) {
 
-    val timeframe by usageListViewModel.timeFrame.observeAsState(usageListViewModel.timeFrame.value!!)
+    val timeframe by commonTopbarParametersViewModel.timeFrame.observeAsState(commonTopbarParametersViewModel.timeFrame.value!!)
     val usageDetailsForUIDViewModel = remember {
         UsageDetailsForUIDViewModel(
             uid,
-            usageListViewModel
+            commonTopbarParametersViewModel,
+            usageDetailsProcessor
         )
     }
     val buckets by usageDetailsForUIDViewModel.usageByUIDGroupedByTime.observeAsState(emptyList())
@@ -124,9 +128,11 @@ fun UsageDetailsForPackage(
         }
 
         val selectedInterval = if (barPlotIntervals.isEmpty() || selectedIntervalIndex.isPresent.not()){
+            Log.d("Network Usage", "No interval has been selected.")
             Optional.empty<Pair<ZonedDateTime, ZonedDateTime>>()
         } else {
             val usageInterval = barPlotIntervals[selectedIntervalIndex.get()]
+            Log.d("Network Usage", "interval has been selected: ${usageInterval.start}")
             Optional.of(Pair(usageInterval.start, usageInterval.end))
         }
 
@@ -145,10 +151,9 @@ fun UsageDetailsForPackage(
         }
         val timeFormatter = DateTimeFormatter.ofPattern("dd.MM.YY-HH.mm")
         for (bucket in buckets) {
-
 //            val bucketsStart =
             if (selectedInterval.isPresent.not() ||
-                (bucket.endTimeStamp / 1000 <= selectedInterval.get().first.toEpochSecond()
+                (bucket.endTimeStamp / 1000 <= selectedInterval.get().second.toEpochSecond()
                         && bucket.startTimeStamp / 1000 >= selectedInterval.get().first.toEpochSecond())
             ) {
                 item {

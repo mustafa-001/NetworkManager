@@ -11,21 +11,23 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Button
 import androidx.compose.material.Card
 import androidx.compose.material.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import com.example.networkusage.ViewModels.UsageListViewModel
+import com.example.networkusage.ViewModels.CommonTopbarParametersViewModel
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
-
 
 
 @Composable
 fun TimeFrameSelector(
     activity: ComponentActivity,
-    viewModel: UsageListViewModel,
+    viewModel: CommonTopbarParametersViewModel,
     mode: TimeFrameMode,
     onDismissRequest: () -> Unit,
     onSubmitRequest: (Pair<ZonedDateTime, ZonedDateTime>) -> Unit

@@ -2,7 +2,6 @@ package com.example.networkusage
 
 import android.app.AppOpsManager
 import android.app.usage.NetworkStats
-import android.app.usage.NetworkStatsManager
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
@@ -41,11 +40,12 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.networkusage.ViewModels.BarPlotIntervalListViewModel
-import com.example.networkusage.ViewModels.UsageListViewModel
+import com.example.networkusage.ViewModels.CommonTopbarParametersViewModel
+import com.example.networkusage.ViewModels.GeneralUsageScreenViewModel
 import com.example.networkusage.ui.theme.NetworkUsageTheme
 import com.example.networkusage.usage_details_processor.NetworkType
-import com.example.networkusage.usage_details_processor.UsageDetailsProcessor
 import com.example.networkusage.usage_details_processor.UsageDetailsProcessorInterface
+import com.example.networkusage.usage_details_processor.UsageDetailsProcessorWithTestData
 import java.text.SimpleDateFormat
 import java.time.Instant
 import java.time.ZoneId
@@ -59,16 +59,17 @@ enum class TimeFrameMode {
 }
 
 class MainActivity : ComponentActivity() {
-    private lateinit var usageListViewModel: UsageListViewModel
+    private lateinit var generalUsageScreenViewModel: GeneralUsageScreenViewModel
+    private lateinit var commonTopbarParametersViewModel: CommonTopbarParametersViewModel
     private lateinit var navController: NavController
     private lateinit var sharedPref: SharedPreferences
 
     @RequiresApi(Build.VERSION_CODES.P)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val usageDetailsManager: UsageDetailsProcessorInterface = UsageDetailsProcessor(
+        val usageDetailsManager: UsageDetailsProcessorInterface = UsageDetailsProcessorWithTestData(
             packageManager = packageManager,
-            networkStatsManager = getSystemService(NETWORK_STATS_SERVICE) as NetworkStatsManager
+//            networkStatsManager = getSystemService(NETWORK_STATS_SERVICE) as NetworkStatsManager
         )
 
         sharedPref = application.applicationContext.getSharedPreferences(
@@ -105,10 +106,8 @@ class MainActivity : ComponentActivity() {
             startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
         }
 
-        usageListViewModel = UsageListViewModel(
-            usageDetailsManager
-        )
-        usageListViewModel.changeNetworkType(
+        commonTopbarParametersViewModel = CommonTopbarParametersViewModel()
+        commonTopbarParametersViewModel.changeNetworkType(
             NetworkType.valueOf(
                 sharedPref.getString(
                     "networkType",
@@ -118,9 +117,9 @@ class MainActivity : ComponentActivity() {
         )
         val timeFrameMode = TimeFrameMode.valueOf(sharedPref.getString("mode", "CUSTOM")!!)
         if (timeFrameMode != TimeFrameMode.CUSTOM) {
-            usageListViewModel.selectPredefinedTimeFrame(timeFrameMode)
+            commonTopbarParametersViewModel.selectPredefinedTimeFrame(timeFrameMode)
         } else {
-            usageListViewModel.setTime(
+            commonTopbarParametersViewModel.setTime(
                 Pair(
                     Instant.ofEpochSecond(
                         sharedPref.getLong(
@@ -138,14 +137,19 @@ class MainActivity : ComponentActivity() {
             )
         }
 
+        generalUsageScreenViewModel = GeneralUsageScreenViewModel(
+            commonTopbarParametersViewModel,
+            usageDetailsManager
+        )
+
         setContent {
             Scaffold(
                 topBar = {
                     TopAppBar {
                         Text("Network Stats")
-                        val networkType by usageListViewModel.networkType.observeAsState()
+                        val networkType by commonTopbarParametersViewModel.networkType.observeAsState()
                         IconButton(onClick = {
-                            usageListViewModel.toggleNetworkType()
+                            commonTopbarParametersViewModel.toggleNetworkType()
                             with(
                                 this@MainActivity.getSharedPreferences(
                                     this@MainActivity.getString(R.string.prefence_file_key),
@@ -186,11 +190,11 @@ class MainActivity : ComponentActivity() {
                         if (showSelectTimeFrame) {
                             TimeFrameSelector(
                                 activity = this@MainActivity,
-                                usageListViewModel,
+                                commonTopbarParametersViewModel,
                                 mode = timeFrameMode,
                                 onDismissRequest = { showSelectTimeFrame = false },
                                 onSubmitRequest = { time ->
-                                    usageListViewModel.setTime(time)
+                                    commonTopbarParametersViewModel.setTime(time)
                                     with(
                                         this@MainActivity.getSharedPreferences(
                                             this@MainActivity.getString(R.string.prefence_file_key),
@@ -268,7 +272,7 @@ class MainActivity : ComponentActivity() {
                                 composable("selectTimeframe") {
                                     TimeFrameSelector(
                                         activity = this@MainActivity,
-                                        usageListViewModel,
+                                        commonTopbarParametersViewModel,
                                         mode = TimeFrameMode.LAST_30_DAYS,
                                         {}, { _ -> })
                                 }
@@ -279,9 +283,10 @@ class MainActivity : ComponentActivity() {
                                     })
                                 ) { navBackStackEntry ->
                                     UsageDetailsForPackage(
-                                        usageListViewModel,
+                                        commonTopbarParametersViewModel,
                                         packageManager,
                                         navBackStackEntry.arguments?.getInt("bucket")!!,
+                                        usageDetailsManager
                                     )
                                 }
                             }
@@ -300,7 +305,7 @@ class MainActivity : ComponentActivity() {
         NetworkUsageTheme {
             TimeFrameSelector(
                 activity = LocalContext.current as ComponentActivity,
-                usageListViewModel,
+                commonTopbarParametersViewModel,
                 TimeFrameMode.LAST_30_DAYS,
                 {},
                 { _ -> })
@@ -377,12 +382,12 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     fun NetworkActivityOverviewControls() {
-        NetworkActivityForAppsList(usageListViewModel)
+        NetworkActivityForAppsList(generalUsageScreenViewModel)
     }
 
 
     @Composable
-    fun NetworkActivityForAppsList(viewModel: UsageListViewModel) {
+    fun NetworkActivityForAppsList(viewModel: GeneralUsageScreenViewModel) {
         val buckets = viewModel.usageByUID.observeAsState()
         val usageTotal: Pair<Long, Long> =
             buckets.value?.let { it ->
@@ -393,7 +398,7 @@ class MainActivity : ComponentActivity() {
                         .ifEmpty { listOf(0L) }
                         .reduce { acc, tx -> acc + tx })
             } ?: Pair(0, 0)
-        val networkType by viewModel.networkType.observeAsState()
+        val networkType by commonTopbarParametersViewModel.networkType.observeAsState()
         buckets.value?.let {
             val biggestUsage =
                 if (it.isEmpty()) {
@@ -404,12 +409,12 @@ class MainActivity : ComponentActivity() {
             LazyColumn {
                 this.item {
                     GeneralInfoHeader(
-                        timeframe = viewModel.timeFrame,
+                        timeframe = commonTopbarParametersViewModel.timeFrame,
                         networkType = networkType!!,
                         totalUsage = usageTotal
                     )
                 }
-                val timeframe = viewModel.timeFrame.value!!
+                val timeframe = commonTopbarParametersViewModel.timeFrame.value!!
                 this.item {
                     val barPlotIntervalListViewModel by remember(timeframe) { mutableStateOf( BarPlotIntervalListViewModel(
                         viewModel.usageDetailsManager.getUsageGroupedByTime(
@@ -496,7 +501,7 @@ class MainActivity : ComponentActivity() {
 
     private fun onSelectTimeFrameMode(mode: TimeFrameMode) {
         if (mode != TimeFrameMode.CUSTOM) {
-            usageListViewModel.selectPredefinedTimeFrame(mode)
+            commonTopbarParametersViewModel.selectPredefinedTimeFrame(mode)
         }
         with(
             this@MainActivity.getSharedPreferences(

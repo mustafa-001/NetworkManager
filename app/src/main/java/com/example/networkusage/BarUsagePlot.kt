@@ -30,6 +30,7 @@ import java.time.ZonedDateTime
 import java.util.Optional
 import kotlin.math.roundToInt
 
+//TODO Rename, possibly BarUsagePlotDataPoint, BarUsagePlotIntervalData, BarUsagePlotEntry
 data class UsageInterval(
     val rxBytes: Long,
     val txBytes: Long,
