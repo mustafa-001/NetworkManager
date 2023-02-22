@@ -6,9 +6,11 @@ import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.Icon
+import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -17,6 +19,7 @@ import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
 import com.example.networkusage.ViewModels.BarPlotIntervalListViewModel
 import com.example.networkusage.ViewModels.CommonTopbarParametersViewModel
@@ -42,7 +45,9 @@ fun UsageDetailsForPackage(
     usageDetailsProcessor: UsageDetailsProcessorInterface
 ) {
 
-    val timeframe by commonTopbarParametersViewModel.timeFrame.observeAsState(commonTopbarParametersViewModel.timeFrame.value!!)
+    val timeframe by commonTopbarParametersViewModel.timeFrame.observeAsState(
+        commonTopbarParametersViewModel.timeFrame.value!!
+    )
     val usageDetailsForUIDViewModel = remember {
         UsageDetailsForUIDViewModel(
             uid,
@@ -127,14 +132,15 @@ fun UsageDetailsForPackage(
             barPlotIntervalListViewModel.intervals
         }
 
-        val selectedInterval = if (barPlotIntervals.isEmpty() || selectedIntervalIndex.isPresent.not()){
-            Log.d("Network Usage", "No interval has been selected.")
-            Optional.empty<Pair<ZonedDateTime, ZonedDateTime>>()
-        } else {
-            val usageInterval = barPlotIntervals[selectedIntervalIndex.get()]
-            Log.d("Network Usage", "interval has been selected: ${usageInterval.start}")
-            Optional.of(Pair(usageInterval.start, usageInterval.end))
-        }
+        val selectedInterval =
+            if (barPlotIntervals.isEmpty() || selectedIntervalIndex.isPresent.not()) {
+                Log.d("Network Usage", "No interval has been selected.")
+                Optional.empty<Pair<ZonedDateTime, ZonedDateTime>>()
+            } else {
+                val usageInterval = barPlotIntervals[selectedIntervalIndex.get()]
+                Log.d("Network Usage", "interval has been selected: ${usageInterval.start}")
+                Optional.of(Pair(usageInterval.start, usageInterval.end))
+            }
 
         item {
             HorizontalPager(count = 2) { page ->
@@ -151,7 +157,6 @@ fun UsageDetailsForPackage(
         }
         val timeFormatter = DateTimeFormatter.ofPattern("dd.MM.YY-HH.mm")
         for (bucket in buckets) {
-//            val bucketsStart =
             if (selectedInterval.isPresent.not() ||
                 (bucket.endTimeStamp / 1000 <= selectedInterval.get().second.toEpochSecond()
                         && bucket.startTimeStamp / 1000 >= selectedInterval.get().first.toEpochSecond())
@@ -174,20 +179,41 @@ fun BucketDetailsRow(
             .padding(7.dp)
             .fillMaxWidth()
     ) {
-        Row(horizontalArrangement = Arrangement.SpaceAround) {
+        Row(modifier =  Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            val start = Instant.ofEpochSecond(bucket.startTimeStamp)
+                .atZone(ZoneId.systemDefault())
+            val end = Instant.ofEpochSecond(bucket.endTimeStamp)
+                .atZone(ZoneId.systemDefault())
             Text(
-                text =
-                Instant.ofEpochMilli(bucket.startTimeStamp)
-                    .atZone(ZoneId.systemDefault())
-                    .format(timeFormatter),
-                modifier = Modifier.padding(1.dp)
+                text = start.format(DateTimeFormatter.ofPattern("dd.MM.YY")),
+
+                //use custom color
+                color = Color.DarkGray,
+                fontSize = 12.sp,
+
             )
+            Row {
             Text(
-                text =
-                Instant.ofEpochMilli(bucket.endTimeStamp).atZone(ZoneId.systemDefault())
-                    .format(timeFormatter),
-                modifier = Modifier.padding(1.dp)
+                text = start.format(DateTimeFormatter.ofPattern("HH:mm")),
             )
+                Spacer(modifier = Modifier.width(5.dp))
+            Text(
+                text = end.format(DateTimeFormatter.ofPattern("HH:mm")),
+            )
+            }
+//            Text(
+//                text =
+//                Instant.ofEpochMilli(bucket.startTimeStamp)
+//                    .atZone(ZoneId.systemDefault())
+//                    .format(timeFormatter),
+//                modifier = Modifier.padding(1.dp)
+//            )
+//            Text(
+//                text =
+//                Instant.ofEpochMilli(bucket.endTimeStamp).atZone(ZoneId.systemDefault())
+//                    .format(timeFormatter),
+//                modifier = Modifier.padding(1.dp)
+//            )
         }
         Row(horizontalArrangement = Arrangement.SpaceBetween) {
             Text(
