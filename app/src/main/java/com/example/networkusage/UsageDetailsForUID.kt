@@ -6,6 +6,7 @@ import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.Icon
+import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
@@ -17,10 +18,13 @@ import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
 import com.example.networkusage.ViewModels.BarPlotIntervalListViewModel
 import com.example.networkusage.ViewModels.CommonTopbarParametersViewModel
 import com.example.networkusage.ViewModels.UsageDetailsForUIDViewModel
+import com.example.networkusage.ui.theme.DownloadColor
+import com.example.networkusage.ui.theme.UploadColor
 import com.example.networkusage.usage_details_processor.AppUsageInfo
 import com.example.networkusage.usage_details_processor.GeneralUsageInfo
 import com.example.networkusage.usage_details_processor.UsageDetailsProcessorInterface
@@ -36,17 +40,19 @@ import java.util.*
 @OptIn(ExperimentalPagerApi::class)
 @Composable
 fun UsageDetailsForPackage(
-    commonTopbarParametersViewModel: CommonTopbarParametersViewModel,
+    commonTopBarParametersViewModel: CommonTopbarParametersViewModel,
     packageManager: PackageManager,
     uid: Int,
     usageDetailsProcessor: UsageDetailsProcessorInterface
 ) {
 
-    val timeframe by commonTopbarParametersViewModel.timeFrame.observeAsState(commonTopbarParametersViewModel.timeFrame.value!!)
+    val timeframe by commonTopBarParametersViewModel.timeFrame.observeAsState(
+        commonTopBarParametersViewModel.timeFrame.value!!
+    )
     val usageDetailsForUIDViewModel = remember {
         UsageDetailsForUIDViewModel(
             uid,
-            commonTopbarParametersViewModel,
+            commonTopBarParametersViewModel,
             usageDetailsProcessor
         )
     }
@@ -66,51 +72,9 @@ fun UsageDetailsForPackage(
                 .isAfter(timeframe.second)
         )
     }
-
+    val appUsageInfo: AppUsageInfo = appUsageInfo(uid, packageManager)
 
     LazyColumn {
-        val appUsageInfo: AppUsageInfo = when (uid) {
-            NetworkStats.Bucket.UID_ALL -> {
-                AppUsageInfo(
-                    uid,
-                    "All",
-                    "All",
-                    0, 0,
-                    null
-                )
-            }
-            NetworkStats.Bucket.UID_TETHERING -> {
-                AppUsageInfo(
-                    uid,
-                    "Tethering",
-                    "Tethering",
-                    0, 0,
-                    null
-                )
-            }
-            NetworkStats.Bucket.UID_REMOVED -> {
-                AppUsageInfo(
-                    uid,
-                    "Removed",
-                    "Removed",
-                    0, 0,
-                    null
-                )
-            }
-            else -> {
-                val p = packageManager.getPackageInfo(
-                    packageManager.getPackagesForUid(uid)!![0],
-                    PackageManager.GET_META_DATA
-                )
-                AppUsageInfo(
-                    uid,
-                    packageManager.getApplicationLabel(p.applicationInfo).toString(),
-                    p.packageName,
-                    0, 0,
-                    p.applicationInfo.loadIcon(packageManager)
-                )
-            }
-        }
         buckets.forEach {
             appUsageInfo.rxBytes += it.rxBytes
             appUsageInfo.txBytes += it.txBytes
@@ -127,14 +91,15 @@ fun UsageDetailsForPackage(
             barPlotIntervalListViewModel.intervals
         }
 
-        val selectedInterval = if (barPlotIntervals.isEmpty() || selectedIntervalIndex.isPresent.not()){
-            Log.d("Network Usage", "No interval has been selected.")
-            Optional.empty<Pair<ZonedDateTime, ZonedDateTime>>()
-        } else {
-            val usageInterval = barPlotIntervals[selectedIntervalIndex.get()]
-            Log.d("Network Usage", "interval has been selected: ${usageInterval.start}")
-            Optional.of(Pair(usageInterval.start, usageInterval.end))
-        }
+        val selectedInterval =
+            if (barPlotIntervals.isEmpty() || selectedIntervalIndex.isPresent.not()) {
+                Log.d("Network Usage", "No interval has been selected.")
+                Optional.empty<Pair<ZonedDateTime, ZonedDateTime>>()
+            } else {
+                val usageInterval = barPlotIntervals[selectedIntervalIndex.get()]
+                Log.d("Network Usage", "interval has been selected: ${usageInterval.start}")
+                Optional.of(Pair(usageInterval.start, usageInterval.end))
+            }
 
         item {
             HorizontalPager(count = 2) { page ->
@@ -150,8 +115,7 @@ fun UsageDetailsForPackage(
             }
         }
         val timeFormatter = DateTimeFormatter.ofPattern("dd.MM.YY-HH.mm")
-        for (bucket in buckets) {
-//            val bucketsStart =
+        for (bucket in buckets.sortedBy { it.rxBytes + it.txBytes }.reversed()) {
             if (selectedInterval.isPresent.not() ||
                 (bucket.endTimeStamp / 1000 <= selectedInterval.get().second.toEpochSecond()
                         && bucket.startTimeStamp / 1000 >= selectedInterval.get().first.toEpochSecond())
@@ -161,6 +125,52 @@ fun UsageDetailsForPackage(
                 }
             }
         }
+    }
+}
+
+private fun appUsageInfo(
+    uid: Int,
+    packageManager: PackageManager
+) = when (uid) {
+    NetworkStats.Bucket.UID_ALL -> {
+        AppUsageInfo(
+            uid,
+            "All",
+            "All",
+            0, 0,
+            null
+        )
+    }
+    NetworkStats.Bucket.UID_TETHERING -> {
+        AppUsageInfo(
+            uid,
+            "Tethering",
+            "Tethering",
+            0, 0,
+            null
+        )
+    }
+    NetworkStats.Bucket.UID_REMOVED -> {
+        AppUsageInfo(
+            uid,
+            "Removed",
+            "Removed",
+            0, 0,
+            null
+        )
+    }
+    else -> {
+        val p = packageManager.getPackageInfo(
+            packageManager.getPackagesForUid(uid)!![0],
+            PackageManager.GET_META_DATA
+        )
+        AppUsageInfo(
+            uid,
+            packageManager.getApplicationLabel(p.applicationInfo).toString(),
+            p.packageName,
+            0, 0,
+            p.applicationInfo.loadIcon(packageManager)
+        )
     }
 }
 
@@ -174,28 +184,72 @@ fun BucketDetailsRow(
             .padding(7.dp)
             .fillMaxWidth()
     ) {
-        Row(horizontalArrangement = Arrangement.SpaceAround) {
-            Text(
-                text =
-                Instant.ofEpochMilli(bucket.startTimeStamp)
-                    .atZone(ZoneId.systemDefault())
-                    .format(timeFormatter),
-                modifier = Modifier.padding(1.dp)
-            )
-            Text(
-                text =
-                Instant.ofEpochMilli(bucket.endTimeStamp).atZone(ZoneId.systemDefault())
-                    .format(timeFormatter),
-                modifier = Modifier.padding(1.dp)
-            )
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            val start = Instant.ofEpochMilli(bucket.startTimeStamp)
+                .atZone(ZoneId.systemDefault())
+            val end = Instant.ofEpochMilli(bucket.endTimeStamp)
+                .atZone(ZoneId.systemDefault())
+            if (start.toLocalDate().dayOfYear != end.toLocalDate().dayOfYear) {
+                Row(
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = start.format(timeFormatter),
+                        color = MaterialTheme.colors.secondaryVariant,
+                        fontSize = 12.sp,
+                    )
+                    Text(
+                        text = end.format(timeFormatter),
+                        color = MaterialTheme.colors.secondaryVariant,
+                        fontSize = 14.sp,
+                    )
+                }
+            } else {
+                Row(
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = start.format(DateTimeFormatter.ofPattern("dd.MM.YY")),
+                        color = MaterialTheme.colors.secondaryVariant,
+                        fontSize = 13.sp,
+                    )
+                    Row {
+                        Text(
+                            text = start.format(DateTimeFormatter.ofPattern("HH:mm")),
+                        )
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text(
+                            text = end.format(DateTimeFormatter.ofPattern("HH:mm")),
+                        )
+                    }
+                }
+            }
         }
         Row(horizontalArrangement = Arrangement.SpaceBetween) {
             Text(
-                text = "Received: ${byteToStringRepresentation(bucket.rxBytes)}",
-                modifier = Modifier.padding(1.dp)
+                text = byteToStringRepresentation(bucket.rxBytes + bucket.txBytes),
+                modifier = Modifier
+                    .padding(1.dp)
+                    .weight(1f)
             )
             Text(
-                text = "Sent: ${byteToStringRepresentation(bucket.txBytes)}",
+                text = byteToStringRepresentation(bucket.txBytes),
+                fontSize = 13.sp,
+                color = UploadColor,
+                modifier = Modifier.padding(1.dp),
+            )
+            Text(
+                text = byteToStringRepresentation(bucket.txBytes),
+                fontSize = 13.sp,
+                color = DownloadColor,
+                modifier = Modifier.padding(1.dp),
+            )
+            Text(
+                //difference between start and end in minutes
+                text = "${(bucket.endTimeStamp - bucket.startTimeStamp) / 1000 / 60} min",
+                color = MaterialTheme.colors.secondaryVariant,
                 modifier = Modifier.padding(1.dp)
             )
         }
