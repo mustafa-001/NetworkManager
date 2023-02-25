@@ -184,7 +184,7 @@ class MainActivity : ComponentActivity() {
                                 {showCustomSelectTimeFrame = it}
                             )
 
-                            TopBarOverflowMenu(showOverflowMenu)
+                            TopBarOverflowMenu(showOverflowMenu, {showOverflowMenu = it})
                         })
                 },
 
@@ -277,16 +277,17 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    private fun TopBarOverflowMenu(showOverflowMenu: Boolean) {
+    private fun TopBarOverflowMenu(showOverflowMenu: Boolean,
+    onChangeShowOverflowMenu: (Boolean) -> Unit) {
         var showOverflowMenu1 = showOverflowMenu
         DropdownMenu(
             expanded = showOverflowMenu1,
             offset = DpOffset(80.dp, 0.dp),
-            onDismissRequest = { showOverflowMenu1 = false }) {
+            onDismissRequest = { onChangeShowOverflowMenu(false)}) {
             DropdownMenuItem(onClick = {
                 commonTopbarParametersViewModel.useTestData =
                     !commonTopbarParametersViewModel.useTestData
-                showOverflowMenu1 = false
+                onChangeShowOverflowMenu( false)
                 val intent =
                     Intent(applicationContext, MainActivity::class.java)
                 startActivity(intent)
@@ -297,7 +298,7 @@ class MainActivity : ComponentActivity() {
                     onCheckedChange = {
                         commonTopbarParametersViewModel.useTestData =
                             !commonTopbarParametersViewModel.useTestData
-                        showOverflowMenu1 = false
+                        onChangeShowOverflowMenu(false)
                     }
                 )
                 Text("Use Test Data")

@@ -106,6 +106,7 @@ fun BarUsagePlot(
                 }
             )
             barChart.axisLeft.setDrawGridLines(false)
+            barChart.isDoubleTapToZoomEnabled = false
             barChart.axisLeft.removeAllLimitLines()
             barChart.axisLeft.setDrawAxisLine(false)
             barChart.axisLeft.setPosition(YAxis.YAxisLabelPosition.INSIDE_CHART)
@@ -119,8 +120,9 @@ fun BarUsagePlot(
             barChart.legend.isEnabled = false
             if (touchListener.isPresent) {
                 barChart.setOnChartValueSelectedListener(touchListener.get())
+            } else {
+                barChart.setTouchEnabled(false)
             }
-            barChart.setTouchEnabled(true)
             barChart.invalidate()
             barChart
         }

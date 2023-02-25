@@ -10,6 +10,8 @@ import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Alignment.Companion.CenterVertically
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -73,12 +75,12 @@ fun UsageDetailsForPackage(
         )
     }
     val appUsageInfo: AppUsageInfo = appUsageInfo(uid, packageManager)
+    buckets.forEach {
+        appUsageInfo.rxBytes += it.rxBytes
+        appUsageInfo.txBytes += it.txBytes
+    }
 
     LazyColumn {
-        buckets.forEach {
-            appUsageInfo.rxBytes += it.rxBytes
-            appUsageInfo.txBytes += it.txBytes
-        }
         item {
             PackageUsageInfoHeader(
                 usageInfo = appUsageInfo
@@ -227,7 +229,7 @@ fun BucketDetailsRow(
                 }
             }
         }
-        Row(horizontalArrangement = Arrangement.SpaceBetween) {
+        Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.SpaceBetween) {
             Text(
                 text = byteToStringRepresentation(bucket.rxBytes + bucket.txBytes),
                 modifier = Modifier
@@ -272,8 +274,7 @@ fun IntervalUsageInfoPreview() {
 
 @Composable
 fun PackageUsageInfoHeader(usageInfo: AppUsageInfo) {
-    Row() {
-
+    Row(verticalAlignment = CenterVertically, modifier = Modifier.height(50.dp)) {
         if (usageInfo.icon == null) {
             val vector = ImageVector.vectorResource(id = R.drawable.ic_baseline_settings_24)
             val painter = rememberVectorPainter(image = vector)
@@ -288,20 +289,14 @@ fun PackageUsageInfoHeader(usageInfo: AppUsageInfo) {
         }
         Spacer(modifier = Modifier.width(8.dp))
         Text(
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.width(IntrinsicSize.Max),
             text = usageInfo.name ?: (usageInfo.packageName), maxLines = 1
         )
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(8.dp).weight(2f))
         Text(
             modifier = Modifier.width(IntrinsicSize.Max),
-            text = "Rx: ${byteToStringRepresentation(usageInfo.rxBytes)}"
+            text = byteToStringRepresentation(usageInfo.rxBytes + usageInfo.txBytes)
         )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            modifier = Modifier.width(IntrinsicSize.Max),
-            text = "Tx: ${byteToStringRepresentation(usageInfo.txBytes)}"
-        )
-
     }
 }
 
