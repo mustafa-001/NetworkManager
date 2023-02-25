@@ -5,7 +5,6 @@ import android.app.usage.NetworkStats
 import android.app.usage.NetworkStatsManager
 import android.content.Context
 import android.content.Intent
-import android.content.SharedPreferences
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -49,8 +48,6 @@ import com.example.networkusage.usage_details_processor.UsageDetailsProcessor
 import com.example.networkusage.usage_details_processor.UsageDetailsProcessorInterface
 import com.example.networkusage.usage_details_processor.UsageDetailsProcessorWithTestData
 import java.text.SimpleDateFormat
-import java.time.Instant
-import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.util.*
 import com.example.networkusage.usage_details_processor.AppUsageInfo as AppUsageInfo1
@@ -64,20 +61,27 @@ class MainActivity : ComponentActivity() {
     private lateinit var generalUsageScreenViewModel: GeneralUsageScreenViewModel
     private lateinit var commonTopbarParametersViewModel: CommonTopbarParametersViewModel
     private lateinit var navController: NavController
-    private lateinit var sharedPref: SharedPreferences
 
     @RequiresApi(Build.VERSION_CODES.P)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val usageDetailsManager: UsageDetailsProcessorInterface = UsageDetailsProcessor(
-            packageManager = packageManager,
-            networkStatsManager = getSystemService(NETWORK_STATS_SERVICE) as NetworkStatsManager
-        )
-
-        sharedPref = application.applicationContext.getSharedPreferences(
+        val sharedPref = application.applicationContext.getSharedPreferences(
             (application.applicationContext.getString(R.string.prefence_file_key)),
             Context.MODE_PRIVATE
         )
+        commonTopbarParametersViewModel = CommonTopbarParametersViewModel(sharedPref)
+
+
+        val usageDetailsManager: UsageDetailsProcessorInterface =
+            //branch for testing on commonTopbarParametersViewModel.useTestData
+            if (commonTopbarParametersViewModel.useTestData) {
+                UsageDetailsProcessorWithTestData(packageManager = packageManager)
+            } else {
+                UsageDetailsProcessor(
+                    packageManager = packageManager,
+                    networkStatsManager = getSystemService(NETWORK_STATS_SERVICE) as NetworkStatsManager
+                )
+            }
 //
 //        val requestPermissionLauncher =
 //            registerForActivityResult(
@@ -108,36 +112,7 @@ class MainActivity : ComponentActivity() {
             startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
         }
 
-        commonTopbarParametersViewModel = CommonTopbarParametersViewModel()
-        commonTopbarParametersViewModel.changeNetworkType(
-            NetworkType.valueOf(
-                sharedPref.getString(
-                    "networkType",
-                    NetworkType.GSM.name
-                )!!
-            )
-        )
-        val timeFrameMode = TimeFrameMode.valueOf(sharedPref.getString("mode", "CUSTOM")!!)
-        if (timeFrameMode != TimeFrameMode.CUSTOM) {
-            commonTopbarParametersViewModel.selectPredefinedTimeFrame(timeFrameMode)
-        } else {
-            commonTopbarParametersViewModel.setTime(
-                Pair(
-                    Instant.ofEpochSecond(
-                        sharedPref.getLong(
-                            "start_time",
-                            Instant.now().minusSeconds(60 * 60 * 24 * 7).epochSecond
-                        )
-                    ).atZone(ZoneId.systemDefault()),
-                    Instant.ofEpochSecond(
-                        sharedPref.getLong(
-                            "start_time",
-                            Instant.now().epochSecond
-                        )
-                    ).atZone(ZoneId.systemDefault()),
-                )
-            )
-        }
+        val timeFrameMode = commonTopbarParametersViewModel.timeFrameMode
 
         generalUsageScreenViewModel = GeneralUsageScreenViewModel(
             commonTopbarParametersViewModel,
@@ -147,114 +122,70 @@ class MainActivity : ComponentActivity() {
         setContent {
             Scaffold(
                 topBar = {
-                    TopAppBar {
-                        Text("Network Stats")
-                        val networkType by commonTopbarParametersViewModel.networkType.observeAsState()
-                        IconButton(onClick = {
-                            commonTopbarParametersViewModel.toggleNetworkType()
-                            with(
-                                this@MainActivity.getSharedPreferences(
-                                    this@MainActivity.getString(R.string.prefence_file_key),
-                                    Context.MODE_PRIVATE
-                                ).edit()
-                            ) {
-                                putString("networkType", networkType!!.name)
-                                apply()
+                    TopAppBar(
+                        title = { Text("Network Usage") },
+                        actions = {
+                            val networkType by commonTopbarParametersViewModel.networkType.observeAsState()
+                            var showTimeFrameDropdownMenu by remember { mutableStateOf(false) }
+                            var showCustomSelectTimeFrame by remember { mutableStateOf(false) }
+                            var showOverflowMenu by remember { mutableStateOf(false) }
+
+                            IconButton(onClick = {
+                                commonTopbarParametersViewModel.toggleNetworkType()
+                            }) {
+                                if (networkType == NetworkType.WIFI
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.ic_baseline_wifi_24),
+                                        contentDescription = "Wifi"
+                                    )
+                                } else {
+                                    Icon(
+                                        painter = painterResource(
+                                            id = R.drawable.ic_twotone_signal_cellular_alt_24
+                                        ),
+                                        contentDescription = "Cellular"
+                                    )
+                                }
                             }
-                        }) {
-                            if (networkType == NetworkType.WIFI
+                            IconButton(onClick = {
+                                showTimeFrameDropdownMenu = !showTimeFrameDropdownMenu
+                            }) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_baseline_access_time_24),
+                                    contentDescription = "Select Time"
+                                )
+                            }
+                            if (showCustomSelectTimeFrame) {
+                                TimeFrameSelector(
+                                    activity = this@MainActivity,
+                                    commonTopbarParametersViewModel,
+                                    mode = timeFrameMode,
+                                    onDismissRequest = { showCustomSelectTimeFrame = false },
+                                    onSubmitRequest = { time ->
+                                        commonTopbarParametersViewModel.setTime(time)
+
+                                    })
+                            }
+                            IconButton(
+                                onClick = {
+                                    showOverflowMenu = !showOverflowMenu
+                                }
                             ) {
                                 Icon(
-                                    painter = painterResource(id = R.drawable.ic_baseline_wifi_24),
-                                    contentDescription = "Wifi"
-                                )
-                            } else {
-                                Icon(
-                                    painter = painterResource(
-                                        id = R.drawable.ic_twotone_signal_cellular_alt_24
-                                    ),
-                                    contentDescription = "Cellular"
+                                    painter = painterResource(id = R.drawable.ic_baseline_more_vert_24),
+                                    contentDescription = "Overflow menu"
                                 )
                             }
-                        }
 
-                        var showSelectTimeFrame by remember { mutableStateOf(false) }
-                        var dropdownExpanded by remember { mutableStateOf(false) }
-
-                        IconButton(onClick = {
-                            dropdownExpanded = !dropdownExpanded
-                        }) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_baseline_access_time_24),
-                                contentDescription = "Select Time"
+                            TopBarTimeFrameSelectionMenu(
+                                showTimeFrameDropdownMenu,
+                                {showTimeFrameDropdownMenu = it},
+                                {showCustomSelectTimeFrame = it}
                             )
-                        }
-                        if (showSelectTimeFrame) {
-                            TimeFrameSelector(
-                                activity = this@MainActivity,
-                                commonTopbarParametersViewModel,
-                                mode = timeFrameMode,
-                                onDismissRequest = { showSelectTimeFrame = false },
-                                onSubmitRequest = { time ->
-                                    commonTopbarParametersViewModel.setTime(time)
-                                    with(
-                                        this@MainActivity.getSharedPreferences(
-                                            this@MainActivity.getString(R.string.prefence_file_key),
-                                            Context.MODE_PRIVATE
-                                        ).edit()
-                                    ) {
-                                        putLong(
-                                            "start_time",
-                                            time.first.toEpochSecond()
-                                        )
-                                        putLong(
-                                            "end_time",
-                                            time.second.toEpochSecond()
-                                        )
-                                        apply()
-                                    }
-                                })
-                        }
 
-
-                        DropdownMenu(
-                            expanded = dropdownExpanded,
-                            offset = DpOffset(80.dp, 0.dp),
-                            onDismissRequest = { dropdownExpanded = false }) {
-                            DropdownMenuItem(onClick = {
-                                onSelectTimeFrameMode(TimeFrameMode.TODAY)
-                                dropdownExpanded = false
-                            }) {
-                                Text("Today")
-                            }
-                            DropdownMenuItem(onClick = {
-                                onSelectTimeFrameMode(TimeFrameMode.LAST_WEEK)
-                                dropdownExpanded = false
-                            }) {
-                                Text("Last Week")
-                            }
-                            DropdownMenuItem(onClick = {
-                                onSelectTimeFrameMode(TimeFrameMode.LAST_30_DAYS)
-                                dropdownExpanded = false
-                            }) {
-                                Text("Last 30 Days")
-                            }
-                            DropdownMenuItem(onClick = {
-                                onSelectTimeFrameMode(TimeFrameMode.THIS_MONTH)
-                                dropdownExpanded = false
-                            }) {
-                                Text("This Month")
-                            }
-                            DropdownMenuItem(onClick = {
-                                showSelectTimeFrame = true
-                                dropdownExpanded = false
-                                onSelectTimeFrameMode(TimeFrameMode.CUSTOM)
-                            }) {
-                                Text("Custom")
-                            }
-
-                        }
-                    }
+                            TopBarOverflowMenu(showOverflowMenu)
+                        })
                 },
 
                 content = {
@@ -297,6 +228,80 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             )
+        }
+    }
+
+    @Composable
+    private fun TopBarTimeFrameSelectionMenu(
+        showTimeFrameDropdownMenu: Boolean,
+        onChangeShowTimeFrameDropdownMenu: (Boolean) -> Unit,
+        onChangeCustomSelectTimeFrameDropdownMenu: (Boolean) -> Unit
+    ) {
+        DropdownMenu(
+            expanded = showTimeFrameDropdownMenu,
+            offset = DpOffset(80.dp, 0.dp),
+            onDismissRequest = {  onChangeShowTimeFrameDropdownMenu (false) }) {
+            DropdownMenuItem(onClick = {
+                onSelectTimeFrameMode(TimeFrameMode.TODAY)
+                onChangeShowTimeFrameDropdownMenu (false)
+            }) {
+                Text("Today")
+            }
+            DropdownMenuItem(onClick = {
+                onSelectTimeFrameMode(TimeFrameMode.LAST_WEEK)
+                onChangeShowTimeFrameDropdownMenu (false)
+            }) {
+                Text("Last Week")
+            }
+            DropdownMenuItem(onClick = {
+                onSelectTimeFrameMode(TimeFrameMode.LAST_30_DAYS)
+                onChangeShowTimeFrameDropdownMenu (false)
+            }) {
+                Text("Last 30 Days")
+            }
+            DropdownMenuItem(onClick = {
+                onSelectTimeFrameMode(TimeFrameMode.THIS_MONTH)
+                onChangeShowTimeFrameDropdownMenu (false)
+            }) {
+                Text("This Month")
+            }
+            DropdownMenuItem(onClick = {
+                onChangeCustomSelectTimeFrameDropdownMenu(true)
+                onChangeShowTimeFrameDropdownMenu (false)
+                onSelectTimeFrameMode(TimeFrameMode.CUSTOM)
+            }) {
+                Text("Custom")
+            }
+
+        }
+    }
+
+    @Composable
+    private fun TopBarOverflowMenu(showOverflowMenu: Boolean) {
+        var showOverflowMenu1 = showOverflowMenu
+        DropdownMenu(
+            expanded = showOverflowMenu1,
+            offset = DpOffset(80.dp, 0.dp),
+            onDismissRequest = { showOverflowMenu1 = false }) {
+            DropdownMenuItem(onClick = {
+                commonTopbarParametersViewModel.useTestData =
+                    !commonTopbarParametersViewModel.useTestData
+                showOverflowMenu1 = false
+                val intent =
+                    Intent(applicationContext, MainActivity::class.java)
+                startActivity(intent)
+
+            }) {
+                Checkbox(
+                    checked = commonTopbarParametersViewModel.useTestData,
+                    onCheckedChange = {
+                        commonTopbarParametersViewModel.useTestData =
+                            !commonTopbarParametersViewModel.useTestData
+                        showOverflowMenu1 = false
+                    }
+                )
+                Text("Use Test Data")
+            }
         }
     }
 
@@ -418,12 +423,16 @@ class MainActivity : ComponentActivity() {
                 }
                 val timeframe = commonTopbarParametersViewModel.timeFrame.value!!
                 this.item {
-                    val barPlotIntervalListViewModel by remember(timeframe) { mutableStateOf( BarPlotIntervalListViewModel(
-                        viewModel.usageDetailsManager.getUsageGroupedByTime(
-                            timeframe,
-                            networkType!!
-                        ), timeframe
-                    ))}
+                    val barPlotIntervalListViewModel by remember(timeframe) {
+                        mutableStateOf(
+                            BarPlotIntervalListViewModel(
+                                viewModel.usageDetailsManager.getUsageGroupedByTime(
+                                    timeframe,
+                                    networkType!!
+                                ), timeframe
+                            )
+                        )
+                    }
                     val intervals = when {
                         timeframe.first.plusDays(7)
                             .isAfter(timeframe.second) -> barPlotIntervalListViewModel.intervals
@@ -431,7 +440,9 @@ class MainActivity : ComponentActivity() {
 
                     }
                     BarUsagePlot(
-                        intervals = intervals, Optional.empty(), BarEntryXAxisLabelFormatter { -> intervals }
+                        intervals = intervals,
+                        Optional.empty(),
+                        BarEntryXAxisLabelFormatter { -> intervals }
                     )
                 }
                 this.items(it) { b ->
