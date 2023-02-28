@@ -11,17 +11,17 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
 
-class CommonTopbarParametersViewModel(val sharedPref: SharedPreferences) : ViewModel() {
+class CommonTopbarParametersViewModel(private val sharedPref: SharedPreferences) : ViewModel() {
 
     val timeFrameMode = TimeFrameMode.valueOf(sharedPref.getString("mode", "CUSTOM")!!)
     var useTestData: Boolean = sharedPref.getBoolean("useTestData", false)
-    set(value) {
-        field = value
-        with(sharedPref.edit()) {
-            putBoolean("useTestData", value)
-            apply()
+        set(value) {
+            field = value
+            with(sharedPref.edit()) {
+                putBoolean("useTestData", value)
+                apply()
+            }
         }
-    }
 
     private val _timeFrame = MutableLiveData<Pair<ZonedDateTime, ZonedDateTime>>()
     val timeFrame: LiveData<Pair<ZonedDateTime, ZonedDateTime>>
@@ -86,19 +86,19 @@ class CommonTopbarParametersViewModel(val sharedPref: SharedPreferences) : ViewM
     fun setTime(value: Pair<ZonedDateTime, ZonedDateTime>) {
         //compare value and timeFrame.value to avoid unnecessary updates
         if (value != timeFrame.value) {
-        with(
-            sharedPref.edit()
-        ) {
-            putLong(
-                "start_time",
-                value.first.toEpochSecond()
-            )
-            putLong(
-                "end_time",
-                value.second.toEpochSecond()
-            )
-            apply()
-        }
+            with(
+                sharedPref.edit()
+            ) {
+                putLong(
+                    "start_time",
+                    value.first.toEpochSecond()
+                )
+                putLong(
+                    "end_time",
+                    value.second.toEpochSecond()
+                )
+                apply()
+            }
         }
         _timeFrame.value = value
         Log.d("Network Usage", "timeFrame set to: ${value.first} and ${value.second}")
@@ -128,5 +128,11 @@ class CommonTopbarParametersViewModel(val sharedPref: SharedPreferences) : ViewM
                 TimeFrameMode.CUSTOM -> TODO("Unreachable.")
             }
         )
+        with(
+            sharedPref.edit()
+        ) {
+            putString("mode", timeFrameMode.name)
+            apply()
+        }
     }
 }

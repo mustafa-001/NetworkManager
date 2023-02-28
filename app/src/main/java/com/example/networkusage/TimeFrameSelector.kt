@@ -12,14 +12,14 @@ import androidx.compose.material.Button
 import androidx.compose.material.Card
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import com.example.networkusage.ViewModels.CommonTopbarParametersViewModel
+import com.example.networkusage.ui.theme.NetworkUsageTheme
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 
@@ -27,13 +27,13 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun TimeFrameSelector(
     activity: ComponentActivity,
-    viewModel: CommonTopbarParametersViewModel,
+    timeFrame: Pair<ZonedDateTime, ZonedDateTime>,
     mode: TimeFrameMode,
     onDismissRequest: () -> Unit,
     onSubmitRequest: (Pair<ZonedDateTime, ZonedDateTime>) -> Unit
 ) {
     Dialog(onDismissRequest = onDismissRequest) {
-        val viewModelTime by viewModel.timeFrame.observeAsState()
+        val viewModelTime = timeFrame
         var startTime = remember {
             viewModelTime!!.first
         }
@@ -46,23 +46,28 @@ fun TimeFrameSelector(
             elevation = 8.dp,
             shape = RoundedCornerShape(12.dp)
         ) {
-            Column(modifier = Modifier
-                .height(400.dp)
-                .padding(10.dp)) {
-                    TimeSelector(
-                        label = "Start",
-                        time = startTime,
-                        activity = activity,
-                        visibility = true,
-                    ) { time -> startTime = time }
-                    TimeSelector(
-                        label = "End",
-                        time = endTime,
-                        activity = activity,
-                        visibility = true,
-                    )
-                    { time -> endTime = time }
-                Row(modifier = Modifier.offset(0.dp, (30).dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+            Column(
+                modifier = Modifier
+                    .height(400.dp)
+                    .padding(10.dp)
+            ) {
+                TimeSelector(
+                    label = "Start",
+                    time = startTime,
+                    activity = activity,
+                    visibility = true,
+                ) { time -> startTime = time }
+                TimeSelector(
+                    label = "End",
+                    time = endTime,
+                    activity = activity,
+                    visibility = true,
+                )
+                { time -> endTime = time }
+                Row(
+                    modifier = Modifier.offset(0.dp, (30).dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
                     Button(modifier = Modifier.weight(1f), onClick = { onDismissRequest() }) {
                         Text(text = "Close")
                     }
@@ -137,6 +142,30 @@ fun TimeSelector(
                 }
             }
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun PreviewTimeFrameSelector() {
+    NetworkUsageTheme {
+        TimeFrameSelector(
+            activity = LocalContext.current as ComponentActivity,
+            timeFrame = Pair(ZonedDateTime.now(), ZonedDateTime.now()),
+            mode = TimeFrameMode.LAST_30_DAYS,
+            onDismissRequest = {
+                Log.d(
+                    "Network Usage",
+                    "Custom TimeFrameSelector dismiss clicked."
+                )
+            },
+            onSubmitRequest = { timeframe ->
+                Log.d(
+                    "Network Usage",
+                    "Custom TimeFrameSelector submit clicked ${timeframe.first}, ${timeframe.second}"
+                )
+            }
+        )
     }
 }
 
