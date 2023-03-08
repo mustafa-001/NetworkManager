@@ -20,15 +20,13 @@ import com.example.networkusage.ui.theme.UploadColor
 import com.github.mikephil.charting.charts.BarChart
 import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.components.YAxis
-import com.github.mikephil.charting.data.*
+import com.github.mikephil.charting.data.BarData
+import com.github.mikephil.charting.data.BarDataSet
+import com.github.mikephil.charting.data.BarEntry
 import com.github.mikephil.charting.formatter.ValueFormatter
 import com.github.mikephil.charting.listener.OnChartValueSelectedListener
-import java.time.Duration
-import java.time.Instant
-import java.time.ZoneId
 import java.time.ZonedDateTime
-import java.util.Optional
-import kotlin.math.roundToInt
+import java.util.*
 
 //TODO Rename, possibly BarUsagePlotDataPoint, BarUsagePlotIntervalData, BarUsagePlotEntry
 data class UsageInterval(
@@ -43,7 +41,8 @@ data class UsageInterval(
 fun BarUsagePlot(
     intervals: List<UsageInterval>,
     touchListener: Optional<OnChartValueSelectedListener>,
-    xAxisLabelFormatter: ValueFormatter
+    xAxisLabelFormatter: ValueFormatter,
+    animationCallbackSetter: (() -> Unit) -> Unit = {}
 ) {
     Column {
         val onPrimaryColor = MaterialTheme.colors.onPrimary.toArgb()
@@ -55,6 +54,7 @@ fun BarUsagePlot(
                 BarChart(context)
             }
         ) { barChart ->
+            Log.d("Network Usage", "Composing bar usage plot. $intervals")
             barChart.setExtraOffsets(0f, 0f, 0f, 0f)
             val timeDifference = intervals.getOrNull(0).let {
                 if (it == null) {
@@ -69,7 +69,7 @@ fun BarUsagePlot(
             val txEntries = mutableListOf<BarEntry>()
             intervals.mapIndexed { index, it ->
                 Log.d(
-                    "Network Usage", "Adding interval to as bar entry " +
+                    "Network Usage", "Adding interval to entries as bar entry " +
                             "index: $index interval: $it"
                 )
                 rxEntries.add(
@@ -124,7 +124,13 @@ fun BarUsagePlot(
                 barChart.setTouchEnabled(false)
             }
             barChart.invalidate()
-            barChart
+            //Set calling a callback to animate graph for calling @Composable.
+            animationCallbackSetter {
+                barChart.animateY(
+                    500,
+                    com.github.mikephil.charting.animation.Easing.EaseInCubic
+                )
+            }
         }
     }
 }

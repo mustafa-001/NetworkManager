@@ -48,76 +48,127 @@ fun UsageDetailsForPackage(
     usageDetailsProcessor: UsageDetailsProcessorInterface
 ) {
 
+    Log.d("Network Usage", "composing UsageDetailsForPackage.")
     val timeframe by commonTopBarParametersViewModel.timeFrame.observeAsState(
         commonTopBarParametersViewModel.timeFrame.value!!
     )
     val usageDetailsForUIDViewModel = remember {
         UsageDetailsForUIDViewModel(
             uid,
-            commonTopBarParametersViewModel,
+            commonTopBarParametersViewModel.timeFrame,
             usageDetailsProcessor
         )
     }
-    val buckets by usageDetailsForUIDViewModel.usageByUIDGroupedByTime.observeAsState(emptyList())
+
+    val usageInfos: List<GeneralUsageInfo> by usageDetailsForUIDViewModel.usageByUIDGroupedByTime.observeAsState(
+        usageDetailsForUIDViewModel.usageByUIDGroupedByTime.value!!
+    )
+
     val barPlotTouchListener by remember {
         mutableStateOf(BarPlotTouchListener())
     }
-    //Reset selected interval before redrawing this composable.
-    barPlotTouchListener.onNothingSelected()
     val selectedIntervalIndex by barPlotTouchListener.intervalIndex.observeAsState(
-        Optional.empty()
+        barPlotTouchListener.intervalIndex.value!!
     )
 
+    //TODO: Move this variable and related logic to barPlotIntervalListViewModel.
     val isNeedGrouping by remember(timeframe.first, timeframe.second) {
-        mutableStateOf(
+        derivedStateOf {
             !timeframe.first.plusDays(7)
                 .isAfter(timeframe.second)
-        )
+        }
     }
-    val appUsageInfo: AppUsageInfo = appUsageInfo(uid, packageManager)
-    buckets.forEach {
-        appUsageInfo.rxBytes += it.rxBytes
-        appUsageInfo.txBytes += it.txBytes
+
+    val appsTotalUsageDuringTimeframe: AppUsageInfo by remember(usageInfos) {
+        derivedStateOf {
+            appUsageInfo(uid, packageManager).also { appUsageInfo ->
+                usageInfos.forEach {
+                    appUsageInfo.rxBytes += it.rxBytes
+                    appUsageInfo.txBytes += it.txBytes
+                }
+            }
+        }
     }
+
+    val barPlotIntervalListViewModel: BarPlotIntervalListViewModel by remember(
+        usageInfos,
+        timeframe
+    ) {
+        mutableStateOf(BarPlotIntervalListViewModel(usageInfos, timeframe))
+    }
+
+    //Animation function to be set by plotting library.
+    var animationCallback: () -> Unit by remember {
+        mutableStateOf({ -> })
+    }
+
+    val barPlotIntervals by remember(isNeedGrouping) {
+        derivedStateOf {
+            if (isNeedGrouping)
+                barPlotIntervalListViewModel.groupedByDay()
+            else {
+                barPlotIntervalListViewModel.intervals
+            }
+        }
+    }
+    LaunchedEffect(usageInfos) {
+        Log.d("Network Usage", "Timeframe changed, calling animationCallback")
+        animationCallback()
+        //Reset selected interval before redrawing this composable.
+        barPlotTouchListener.onNothingSelected()
+    }
+    val selectedInterval =
+        if (barPlotIntervals.isEmpty() || selectedIntervalIndex.isPresent.not()) {
+            Log.d("Network Usage", "No interval has been selected.")
+            Optional.empty<Pair<ZonedDateTime, ZonedDateTime>>()
+        } else {
+            try {
+                val usageInterval =
+                    barPlotIntervals[selectedIntervalIndex.get()]
+                Log.d("Network Usage", "interval has been selected: ${usageInterval.start}")
+                Optional.of(Pair(usageInterval.start, usageInterval.end))
+            } catch (e: IndexOutOfBoundsException) {
+                Log.d(
+                    "Network Usage",
+                    "barPlotIntervals changed but selected intervals is still not resetted..\n" +
+                            "barPlotIntervals.size: ${barPlotIntervals.size} \n" +
+                            "barPlotIntervals start: $barPlotIntervals[0].start \n" +
+                            "barPlotIntervals end: $barPlotIntervals[barPlotIntervals.size - 1].end \n" +
+                            "selectedIntervalIndex: $selectedIntervalIndex"
+                )
+                Optional.empty<Pair<ZonedDateTime, ZonedDateTime>>()
+            }
+        }
 
     LazyColumn {
         item {
             PackageUsageInfoHeader(
-                usageInfo = appUsageInfo
+                usageInfo = appsTotalUsageDuringTimeframe
             )
         }
-        val barPlotIntervalListViewModel = BarPlotIntervalListViewModel(buckets, timeframe)
-        val barPlotIntervals = if (isNeedGrouping)
-            barPlotIntervalListViewModel.groupedByDay()
-        else {
-            barPlotIntervalListViewModel.intervals
-        }
-
-        val selectedInterval =
-            if (barPlotIntervals.isEmpty() || selectedIntervalIndex.isPresent.not()) {
-                Log.d("Network Usage", "No interval has been selected.")
-                Optional.empty<Pair<ZonedDateTime, ZonedDateTime>>()
-            } else {
-                val usageInterval = barPlotIntervals[selectedIntervalIndex.get()]
-                Log.d("Network Usage", "interval has been selected: ${usageInterval.start}")
-                Optional.of(Pair(usageInterval.start, usageInterval.end))
-            }
 
         item {
             HorizontalPager(count = 2) { page ->
                 if (page == 0) {
+                    val xAxisLabelFormatter by remember(barPlotIntervals) {
+                        derivedStateOf {
+                            BarEntryXAxisLabelFormatter({ -> barPlotIntervals })
+                        }
+                    }
                     BarUsagePlot(
                         barPlotIntervals,
                         Optional.of(barPlotTouchListener),
-                        BarEntryXAxisLabelFormatter({ -> barPlotIntervals })
+                        xAxisLabelFormatter,
+                        { animationCallback = it }
                     )
+
                 } else if (page == 1) {
                     CumulativeUsageLinePlot(barPlotIntervalListViewModel.intervals)
                 }
             }
         }
         val timeFormatter = DateTimeFormatter.ofPattern("dd.MM.YY-HH.mm")
-        for (bucket in buckets.sortedBy { it.rxBytes + it.txBytes }.reversed()) {
+        for (bucket in usageInfos.sortedBy { it.rxBytes + it.txBytes }.reversed()) {
             if (selectedInterval.isPresent.not() ||
                 (bucket.endTimeStamp / 1000 <= selectedInterval.get().second.toEpochSecond()
                         && bucket.startTimeStamp / 1000 >= selectedInterval.get().first.toEpochSecond())
@@ -229,7 +280,10 @@ fun BucketDetailsRow(
                 }
             }
         }
-        Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.SpaceBetween) {
+        Row(
+            verticalAlignment = Alignment.Bottom,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
             Text(
                 text = byteToStringRepresentation(bucket.rxBytes + bucket.txBytes),
                 modifier = Modifier
@@ -242,8 +296,9 @@ fun BucketDetailsRow(
                 color = UploadColor,
                 modifier = Modifier.padding(1.dp),
             )
+            Spacer(modifier = Modifier.width(10.dp))
             Text(
-                text = byteToStringRepresentation(bucket.txBytes),
+                text = byteToStringRepresentation(bucket.rxBytes),
                 fontSize = 13.sp,
                 color = DownloadColor,
                 modifier = Modifier.padding(1.dp),
@@ -292,7 +347,11 @@ fun PackageUsageInfoHeader(usageInfo: AppUsageInfo) {
             modifier = Modifier.width(IntrinsicSize.Max),
             text = usageInfo.name ?: (usageInfo.packageName), maxLines = 1
         )
-        Spacer(modifier = Modifier.width(8.dp).weight(2f))
+        Spacer(
+            modifier = Modifier
+                .width(8.dp)
+                .weight(2f)
+        )
         Text(
             modifier = Modifier.width(IntrinsicSize.Max),
             text = byteToStringRepresentation(usageInfo.rxBytes + usageInfo.txBytes)

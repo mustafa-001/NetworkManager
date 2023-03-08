@@ -8,6 +8,7 @@ import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.annotation.RequiresApi
@@ -118,6 +119,7 @@ class MainActivity : ComponentActivity() {
         )
 
         setContent {
+            navController = rememberNavController()
             val timeframe by commonTopbarParametersViewModel.timeFrame.observeAsState(
                 Pair(
                     ZonedDateTime.now(),
@@ -146,40 +148,38 @@ class MainActivity : ComponentActivity() {
                         useTestData = commonTopbarParametersViewModel.useTestData,
                         onChangeUseTestData = { commonTopbarParametersViewModel.useTestData = it }
                     )
-                },
-                content = {
-                    NetworkUsageTheme {
-                        // A surface container using the 'background' color from the theme
-                        Surface(
-                            modifier = Modifier.fillMaxSize(),
-                            color = MaterialTheme.colors.background
+                }
+            ) {
+                NetworkUsageTheme {
+                    // A surface container using the 'background' color from the theme
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colors.background
+                    ) {
+
+                        navController = rememberNavController()
+                        NavHost(
+                            navController = navController as NavHostController,
+                            startDestination = "overview"
                         ) {
-
-                            navController = rememberNavController()
-                            NavHost(
-                                navController = navController as NavHostController,
-                                startDestination = "overview"
-                            ) {
-                                composable("overview") { NetworkActivityOverviewControls() }
-                                composable(
-                                    "details/{bucket}",
-                                    arguments = listOf(navArgument("bucket") {
-                                        type = NavType.IntType
-                                    })
-                                ) { navBackStackEntry ->
-                                    UsageDetailsForPackage(
-                                        commonTopbarParametersViewModel,
-                                        packageManager,
-                                        navBackStackEntry.arguments?.getInt("bucket")!!,
-                                        usageDetailsManager
-                                    )
-                                }
+                            composable("overview") { NetworkActivityOverviewControls() }
+                            composable(
+                                "details/{bucket}",
+                                arguments = listOf(navArgument("bucket") {
+                                    type = NavType.IntType
+                                })
+                            ) { navBackStackEntry ->
+                                UsageDetailsForPackage(
+                                    commonTopbarParametersViewModel,
+                                    packageManager,
+                                    navBackStackEntry.arguments?.getInt("bucket")!!,
+                                    usageDetailsManager
+                                )
                             }
-
                         }
                     }
                 }
-            )
+            }
         }
     }
 
@@ -254,12 +254,14 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     fun NetworkActivityOverviewControls() {
+        Log.d("Network Usage", "Composing main screen.")
         NetworkActivityForAppsList(generalUsageScreenViewModel)
     }
 
 
     @Composable
     fun NetworkActivityForAppsList(viewModel: GeneralUsageScreenViewModel) {
+
         val buckets = viewModel.usageByUID.observeAsState()
         val usageTotal: Pair<Long, Long> =
             buckets.value?.let { it ->
@@ -271,6 +273,14 @@ class MainActivity : ComponentActivity() {
                         .reduce { acc, tx -> acc + tx })
             } ?: Pair(0, 0)
         val networkType by commonTopbarParametersViewModel.networkType.observeAsState()
+        //Animation function to be set by plotting library.
+        var animationCallback: () -> Unit by remember {
+            mutableStateOf({ -> })
+        }
+        LaunchedEffect(buckets) {
+            Log.d("Network Usage", "Timeframe changed, calling animationCallback")
+            animationCallback()
+        }
         buckets.value?.let {
             val biggestUsage =
                 if (it.isEmpty()) {
@@ -278,6 +288,7 @@ class MainActivity : ComponentActivity() {
                 } else {
                     it[0].rxBytes + it[0].txBytes
                 }
+
             LazyColumn {
                 this.item {
                     GeneralInfoHeader(
@@ -307,7 +318,8 @@ class MainActivity : ComponentActivity() {
                     BarUsagePlot(
                         intervals = intervals,
                         Optional.empty(),
-                        BarEntryXAxisLabelFormatter { -> intervals }
+                        BarEntryXAxisLabelFormatter { -> intervals },
+                        { animationCallback = it }
                     )
                 }
                 this.items(it) { b ->
@@ -340,8 +352,7 @@ class MainActivity : ComponentActivity() {
         Row(
             Modifier
                 .clickable(onClick = {
-                    val uid = usage.uid
-                    navController.navigate("details/$uid")
+                    navController.navigate("details/${usage.uid}")
                 })
                 .padding(10.dp)
         ) {

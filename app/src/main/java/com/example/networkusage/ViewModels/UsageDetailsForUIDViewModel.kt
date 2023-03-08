@@ -4,10 +4,11 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import com.example.networkusage.usage_details_processor.GeneralUsageInfo
 import com.example.networkusage.usage_details_processor.UsageDetailsProcessorInterface
+import java.time.ZonedDateTime
 
 class UsageDetailsForUIDViewModel(
     private val uid: Int,
-    commonTopbarParametersViewModel: CommonTopbarParametersViewModel,
+    private val timeFrame: LiveData<Pair<ZonedDateTime, ZonedDateTime>>,
     private val usageDetailsProcessor: UsageDetailsProcessorInterface
 ) {
     private val _usageByUIDGroupedByTime: MutableLiveData<List<GeneralUsageInfo>> =
@@ -17,7 +18,7 @@ class UsageDetailsForUIDViewModel(
 
     init {
         //observe commonTopbarParametersViewModel.timeFrame and update _usageByUIDGroupedByTime
-        commonTopbarParametersViewModel.timeFrame.observeForever {
+        timeFrame.observeForever {
             _usageByUIDGroupedByTime.value = usageDetailsProcessor.getUsageByUIDGroupedByTime(
                 uid, it
             )
