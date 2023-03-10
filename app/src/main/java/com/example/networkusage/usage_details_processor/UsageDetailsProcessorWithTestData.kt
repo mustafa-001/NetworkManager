@@ -2,6 +2,7 @@ package com.example.networkusage.usage_details_processor
 
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
+import android.util.Log
 import java.time.ZonedDateTime
 import kotlin.random.Random
 
@@ -18,6 +19,7 @@ class UsageDetailsProcessorWithTestData(
     ): List<GeneralUsageInfo> {
 
         val random = Random(1)
+        Log.d("NetworkUsage", "Generating random data for uid $uid, timeFrame: $timeFrame, random seed: 1")
         var next2HourIntervalStart = timeFrame.first
         val r = mutableListOf<GeneralUsageInfo>()
         while (next2HourIntervalStart.isBefore(timeFrame.second)) {
@@ -43,6 +45,7 @@ class UsageDetailsProcessorWithTestData(
         networkType: NetworkType
     ): List<GeneralUsageInfo> {
         val random = Random(2)
+        Log.d("NetworkUsage", "Generating random data for timeFrame: $timeFrame, random seed: 2")
         var next2HourIntervalStart = timeFrame.first
         val r = mutableListOf<GeneralUsageInfo>()
         while (next2HourIntervalStart.isBefore(timeFrame.second)) {

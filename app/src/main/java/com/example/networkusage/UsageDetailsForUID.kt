@@ -94,6 +94,8 @@ fun UsageDetailsForPackage(
         usageInfos,
         timeframe
     ) {
+        //Reset selected interval before redrawing this composable.
+        barPlotTouchListener.onNothingSelected()
         mutableStateOf(BarPlotIntervalListViewModel(usageInfos, timeframe))
     }
 
@@ -114,8 +116,6 @@ fun UsageDetailsForPackage(
     LaunchedEffect(usageInfos) {
         Log.d("Network Usage", "Timeframe changed, calling animationCallback")
         animationCallback()
-        //Reset selected interval before redrawing this composable.
-        barPlotTouchListener.onNothingSelected()
     }
     val selectedInterval =
         if (barPlotIntervals.isEmpty() || selectedIntervalIndex.isPresent.not()) {

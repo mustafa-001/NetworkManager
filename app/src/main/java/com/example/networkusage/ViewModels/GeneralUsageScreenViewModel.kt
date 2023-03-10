@@ -10,7 +10,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 class GeneralUsageScreenViewModel(
-    val commonTopbarParametersViewModel: CommonTopbarParametersViewModel,
+    private val commonTopbarParametersViewModel: CommonTopbarParametersViewModel,
     val usageDetailsManager: UsageDetailsProcessorInterface
 ) :
     ViewModel() {

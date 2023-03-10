@@ -5,6 +5,7 @@ import android.app.usage.NetworkStats
 import android.app.usage.NetworkStatsManager
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -190,18 +191,28 @@ class MainActivity : ComponentActivity() {
         networkType: NetworkType,
         totalUsage: Pair<Long, Long>
     ) {
-        Card() {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            elevation = 8.dp,
+            backgroundColor = MaterialTheme.colors.surface
+        ) {
             val time: Pair<ZonedDateTime, ZonedDateTime> by timeframe.observeAsState(
                 Pair(
                     ZonedDateTime.now(), ZonedDateTime.now()
                 )
             )
             Column {
-                Row(horizontalArrangement = Arrangement.Center) {
+                Row(
+                    horizontalArrangement = Arrangement.Center,
+                    modifier = Modifier.padding(8.dp)
+                ) {
                     Text(
                         byteToStringRepresentation(totalUsage.first),
                         modifier = Modifier.weight(1f),
-                        textAlign = TextAlign.End
+                        textAlign = TextAlign.End,
+                        fontSize = 14.sp
                     )
                     Icon(
                         painter = painterResource(id = R.drawable.ic_sharp_arrow_downward_24),
@@ -211,9 +222,15 @@ class MainActivity : ComponentActivity() {
                         painter = painterResource(id = R.drawable.ic_baseline_arrow_upward_24),
                         contentDescription = ""
                     )
-                    Text(byteToStringRepresentation(totalUsage.second), Modifier.weight(1f))
+                    Text(
+                        byteToStringRepresentation(totalUsage.second), Modifier.weight(1f),
+                        fontSize = 14.sp
+                    )
                 }
-                Row(horizontalArrangement = Arrangement.SpaceAround) {
+                Row(
+                    horizontalArrangement = Arrangement.SpaceAround,
+                    modifier = Modifier.padding(8.dp)
+                ) {
                     Text(
                         time.first.formatWithReference(
                             ZonedDateTime.now()
@@ -238,18 +255,20 @@ class MainActivity : ComponentActivity() {
     @Preview(showBackground = true)
     @Composable
     fun GeneralInfoHeaderPreview() {
-        GeneralInfoHeader(
-            timeframe = MutableLiveData<Pair<ZonedDateTime, ZonedDateTime>>().apply {
-                this.postValue(
-                    Pair(
-                        ZonedDateTime.now().minusDays(1).minusHours(4),
-                        ZonedDateTime.now()
+        NetworkUsageTheme {
+            GeneralInfoHeader(
+                MutableLiveData<Pair<ZonedDateTime, ZonedDateTime>>().apply {
+                    this.postValue(
+                        Pair(
+                            ZonedDateTime.now().minusDays(1).minusHours(4),
+                            ZonedDateTime.now()
+                        )
                     )
-                )
-            } as LiveData<Pair<ZonedDateTime, ZonedDateTime>>,
-            networkType = NetworkType.WIFI,
-            Pair(420000, 23499)
-        )
+                } as LiveData<Pair<ZonedDateTime, ZonedDateTime>>,
+                NetworkType.WIFI,
+                Pair(420000, 23499)
+            )
+        }
     }
 
     @Composable
@@ -261,10 +280,11 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     fun NetworkActivityForAppsList(viewModel: GeneralUsageScreenViewModel) {
-
-        val buckets = viewModel.usageByUID.observeAsState()
+        val buckets by viewModel.usageByUID.observeAsState(
+            viewModel.usageByUID.value!!
+        )
         val usageTotal: Pair<Long, Long> =
-            buckets.value?.let { it ->
+            buckets.let { it ->
                 Pair(it.map { it.rxBytes }
                     .ifEmpty { listOf(0L) }
                     .reduce { acc, rx -> acc + rx },
@@ -281,7 +301,7 @@ class MainActivity : ComponentActivity() {
             Log.d("Network Usage", "Timeframe changed, calling animationCallback")
             animationCallback()
         }
-        buckets.value?.let {
+        buckets.let {
             val biggestUsage =
                 if (it.isEmpty()) {
                     0
@@ -357,7 +377,10 @@ class MainActivity : ComponentActivity() {
                 .padding(10.dp)
         ) {
             Icon(
-                usage.icon!!.toBitmap().asImageBitmap(),
+                when (usage.icon) {
+                    null -> Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
+                    else -> usage.icon!!.toBitmap()
+                }.asImageBitmap(),
                 "",
                 modifier = Modifier.size(40.dp),
                 tint = Color.Unspecified
