@@ -6,11 +6,10 @@ import android.app.TimePickerDialog
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.Button
-import androidx.compose.material.Card
-import androidx.compose.material.Text
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,15 +34,12 @@ fun TimeFrameSelector(
     Dialog(onDismissRequest = onDismissRequest) {
         val viewModelTime = timeFrame
         var startTime = remember {
-            viewModelTime!!.first
+            viewModelTime.first
         }
         var endTime = remember {
-            viewModelTime!!.second
+            viewModelTime.second
         }
-        val scrollState = rememberScrollState()
-//        var customSelectionVisibility by remember { mutableStateOf(mode == TimeFrameMode.CUSTOM) }
         Card(
-            elevation = 8.dp,
             shape = RoundedCornerShape(12.dp)
         ) {
             Column(

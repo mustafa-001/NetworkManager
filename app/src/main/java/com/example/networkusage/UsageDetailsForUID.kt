@@ -5,9 +5,7 @@ import android.content.pm.PackageManager
 import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.Icon
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
@@ -20,12 +18,12 @@ import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
 import com.example.networkusage.ViewModels.BarPlotIntervalListViewModel
 import com.example.networkusage.ViewModels.CommonTopbarParametersViewModel
 import com.example.networkusage.ViewModels.UsageDetailsForUIDViewModel
 import com.example.networkusage.ui.theme.DownloadColor
+import com.example.networkusage.ui.theme.NetworkUsageTheme
 import com.example.networkusage.ui.theme.UploadColor
 import com.example.networkusage.usage_details_processor.AppUsageInfo
 import com.example.networkusage.usage_details_processor.GeneralUsageInfo
@@ -232,83 +230,94 @@ fun BucketDetailsRow(
     bucket: GeneralUsageInfo,
     timeFormatter: DateTimeFormatter
 ) {
-    Column(
-        Modifier
-            .padding(7.dp)
-            .fillMaxWidth()
+    Card(
+        modifier = Modifier.padding(start = 8.dp, end = 8.dp, top = 2.dp, bottom = 2.dp),
     ) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            val start = Instant.ofEpochMilli(bucket.startTimeStamp)
-                .atZone(ZoneId.systemDefault())
-            val end = Instant.ofEpochMilli(bucket.endTimeStamp)
-                .atZone(ZoneId.systemDefault())
-            if (start.toLocalDate().dayOfYear != end.toLocalDate().dayOfYear) {
-                Row(
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = start.format(timeFormatter),
-                        color = MaterialTheme.colors.secondaryVariant,
-                        fontSize = 12.sp,
-                    )
-                    Text(
-                        text = end.format(timeFormatter),
-                        color = MaterialTheme.colors.secondaryVariant,
-                        fontSize = 14.sp,
-                    )
-                }
-            } else {
-                Row(
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = start.format(DateTimeFormatter.ofPattern("dd.MM.YY")),
-                        color = MaterialTheme.colors.secondaryVariant,
-                        fontSize = 13.sp,
-                    )
-                    Row {
+        Column(
+            Modifier
+                .fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                val start = Instant.ofEpochMilli(bucket.startTimeStamp)
+                    .atZone(ZoneId.systemDefault())
+                val end = Instant.ofEpochMilli(bucket.endTimeStamp)
+                    .atZone(ZoneId.systemDefault())
+                if (start.toLocalDate().dayOfYear != end.toLocalDate().dayOfYear) {
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(4.dp)
+                    ) {
                         Text(
-                            text = start.format(DateTimeFormatter.ofPattern("HH:mm")),
+                            text = start.format(timeFormatter),
+                            fontSize = MaterialTheme.typography.labelLarge.fontSize,
                         )
-                        Spacer(modifier = Modifier.width(5.dp))
                         Text(
-                            text = end.format(DateTimeFormatter.ofPattern("HH:mm")),
+                            text = end.format(timeFormatter),
+                            fontSize = MaterialTheme.typography.labelLarge.fontSize,
                         )
+                    }
+                } else {
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(4.dp)
+                    ) {
+                        Text(
+                            text = start.format(DateTimeFormatter.ofPattern("dd.MM.YY")),
+                            fontSize = MaterialTheme.typography.labelLarge.fontSize,
+                        )
+                        Row(horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text(
+                                text = start.format(DateTimeFormatter.ofPattern("HH:mm")),
+                                fontSize = MaterialTheme.typography.labelLarge.fontSize,
+                                modifier = Modifier.padding(start = 8.dp, end = 8.dp)
+                            )
+                            Text(
+                                text = end.format(DateTimeFormatter.ofPattern("HH:mm")),
+                                fontSize = MaterialTheme.typography.labelLarge.fontSize,
+                                modifier = Modifier.padding(start = 8.dp, end = 8.dp)
+                            )
+                        }
                     }
                 }
             }
-        }
-        Row(
-            verticalAlignment = Alignment.Bottom,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = byteToStringRepresentation(bucket.rxBytes + bucket.txBytes),
-                modifier = Modifier
-                    .padding(1.dp)
-                    .weight(1f)
-            )
-            Text(
-                text = byteToStringRepresentation(bucket.txBytes),
-                fontSize = 13.sp,
-                color = UploadColor,
-                modifier = Modifier.padding(1.dp),
-            )
-            Spacer(modifier = Modifier.width(10.dp))
-            Text(
-                text = byteToStringRepresentation(bucket.rxBytes),
-                fontSize = 13.sp,
-                color = DownloadColor,
-                modifier = Modifier.padding(1.dp),
-            )
-            Text(
-                //difference between start and end in minutes
-                text = "${(bucket.endTimeStamp - bucket.startTimeStamp) / 1000 / 60} min",
-                color = MaterialTheme.colors.secondaryVariant,
-                modifier = Modifier.padding(1.dp)
-            )
+            Row(
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.padding(4.dp)
+            ) {
+                Text(
+                    text = byteToStringRepresentation(bucket.rxBytes + bucket.txBytes),
+                    fontSize = MaterialTheme.typography.bodyLarge.fontSize,
+                    modifier = Modifier
+                        .weight(1f)
+                )
+                Text(
+                    text = byteToStringRepresentation(bucket.txBytes),
+                    fontSize = MaterialTheme.typography.labelMedium.fontSize,
+                    color = UploadColor,
+                    modifier = Modifier.padding(start = 8.dp, end = 8.dp)
+                )
+                Text(
+                    text = byteToStringRepresentation(bucket.rxBytes),
+                    fontSize = MaterialTheme.typography.labelMedium.fontSize,
+                    color = DownloadColor,
+                    modifier = Modifier.padding(start = 8.dp, end = 8.dp)
+                )
+                Text(
+                    //difference between start and end in minutes
+                    text = "${(bucket.endTimeStamp - bucket.startTimeStamp) / 1000 / 60} min",
+                    fontSize = MaterialTheme.typography.labelLarge.fontSize,
+                    color = MaterialTheme.typography.labelMedium.color,
+                    modifier = Modifier.padding(start = 8.dp, end = 8.dp)
+                )
+            }
         }
     }
 }
@@ -323,53 +332,69 @@ fun IntervalUsageInfoPreview() {
         ZonedDateTime.now().toEpochSecond()
     )
     val timeFormatter = DateTimeFormatter.ofPattern("dd.MM.YY-HH.mm")
-    BucketDetailsRow(bucket, timeFormatter)
+    NetworkUsageTheme() {
+        BucketDetailsRow(bucket, timeFormatter)
+    }
 }
 
 
 @Composable
 fun PackageUsageInfoHeader(usageInfo: AppUsageInfo) {
-    Row(verticalAlignment = CenterVertically, modifier = Modifier.height(50.dp)) {
-        if (usageInfo.icon == null) {
-            val vector = ImageVector.vectorResource(id = R.drawable.ic_baseline_settings_24)
-            val painter = rememberVectorPainter(image = vector)
-            Icon(painter, "")
-        } else {
-            Icon(
-                usageInfo.icon!!.toBitmap().asImageBitmap(),
-                "",
-                modifier = Modifier.size(40.dp),
-                tint = Color.Unspecified
+    ElevatedCard(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
+        ),
+        modifier = Modifier
+            .padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 4.dp)
+            .height(60.dp)
+    ) {
+        Row(
+            verticalAlignment = CenterVertically, modifier = Modifier
+                .padding(8.dp)
+        ) {
+            if (usageInfo.icon == null) {
+                val vector = ImageVector.vectorResource(id = R.drawable.ic_baseline_settings_24)
+                val painter = rememberVectorPainter(image = vector)
+                Icon(painter, "")
+            } else {
+                Icon(
+                    usageInfo.icon!!.toBitmap().asImageBitmap(),
+                    "",
+                    modifier = Modifier.size(40.dp),
+                    tint = Color.Unspecified
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                modifier = Modifier.width(IntrinsicSize.Max),
+                text = usageInfo.name ?: (usageInfo.packageName), maxLines = 1
+            )
+            Spacer(
+                modifier = Modifier
+                    .width(8.dp)
+                    .weight(2f)
+            )
+            Text(
+                modifier = Modifier.width(IntrinsicSize.Max),
+                text = byteToStringRepresentation(usageInfo.rxBytes + usageInfo.txBytes)
             )
         }
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            modifier = Modifier.width(IntrinsicSize.Max),
-            text = usageInfo.name ?: (usageInfo.packageName), maxLines = 1
-        )
-        Spacer(
-            modifier = Modifier
-                .width(8.dp)
-                .weight(2f)
-        )
-        Text(
-            modifier = Modifier.width(IntrinsicSize.Max),
-            text = byteToStringRepresentation(usageInfo.rxBytes + usageInfo.txBytes)
-        )
     }
 }
 
 @Preview(showBackground = true)
 @Composable
 fun PackageInfoPreview() {
-    PackageUsageInfoHeader(
-        usageInfo = AppUsageInfo(
-            100,
-            "Android",
-            "com.android",
-            txBytes = 100000,
-            rxBytes = 10000000,
-            null
+    NetworkUsageTheme() {
+        PackageUsageInfoHeader(
+            usageInfo = AppUsageInfo(
+                100,
+                "Android",
+                "com.android",
+                txBytes = 100000,
+                rxBytes = 10000000,
+                null
+            )
         )
-    )
+    }
 }

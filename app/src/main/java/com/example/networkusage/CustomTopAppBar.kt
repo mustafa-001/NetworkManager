@@ -1,14 +1,19 @@
 package com.example.networkusage
 
 import android.content.Intent
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import com.example.networkusage.usage_details_processor.NetworkType
 import java.time.ZonedDateTime
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CustomTopAppBar(
     activity: MainActivity,
@@ -19,81 +24,76 @@ fun CustomTopAppBar(
     networkType: NetworkType,
     onClickNetworkType: () -> Unit,
     useTestData: Boolean,
-    onChangeUseTestData: (Boolean) -> Unit
+    onChangeUseTestData: (Boolean) -> Unit,
+    scrollBehavior: TopAppBarScrollBehavior
 ) {
-    TopAppBar(
-        title = { Text("Network Usage") },
-        actions = {
-            var showTimeFrameDropdownMenu by remember { mutableStateOf(false) }
-            var showCustomSelectTimeFrame by remember { mutableStateOf(false) }
-            var showOverflowMenu by remember { mutableStateOf(false) }
+    TopAppBar(title = { Text("Network Usage") }, colors = TopAppBarDefaults.smallTopAppBarColors(
+        containerColor = MaterialTheme.colorScheme.primary,
+        titleContentColor = MaterialTheme.colorScheme.onPrimary,
+        actionIconContentColor = MaterialTheme.colorScheme.onPrimary,
+        navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
+        scrolledContainerColor = MaterialTheme.colorScheme.primary
+    ), scrollBehavior = scrollBehavior, actions = {
+        var showTimeFrameDropdownMenu by remember { mutableStateOf(false) }
+        var showCustomSelectTimeFrame by remember { mutableStateOf(false) }
+        var showOverflowMenu by remember { mutableStateOf(false) }
 
-            IconButton(
-                onClick = onClickNetworkType
-            ) {
-                if (networkType == NetworkType.WIFI
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_baseline_wifi_24),
-                        contentDescription = "Wifi"
-                    )
-                } else {
-                    Icon(
-                        painter = painterResource(
-                            id = R.drawable.ic_twotone_signal_cellular_alt_24
-                        ),
-                        contentDescription = "Cellular"
-                    )
-                }
-            }
-            IconButton(onClick = {
-                showTimeFrameDropdownMenu = !showTimeFrameDropdownMenu
-            }) {
+        IconButton(
+            onClick = onClickNetworkType
+        ) {
+            if (networkType == NetworkType.WIFI) {
                 Icon(
-                    painter = painterResource(id = R.drawable.ic_baseline_access_time_24),
-                    contentDescription = "Select Time"
+                    painter = painterResource(id = R.drawable.ic_baseline_wifi_24),
+                    contentDescription = "Wifi"
+                )
+            } else {
+                Icon(
+                    painter = painterResource(
+                        id = R.drawable.baseline_signal_cellular_alt_24
+                    ), contentDescription = "Cellular"
                 )
             }
-            if (showCustomSelectTimeFrame) {
-                TimeFrameSelector(
-                    activity = activity,
-                    timeFrame,
-                    mode = timeFrameMode,
-                    onDismissRequest = { showCustomSelectTimeFrame = false },
-                    onSubmitRequest = { time ->
-                        onChangeTimeFrame(time)
-                    })
-            }
-            IconButton(
-                onClick = {
-                    showOverflowMenu = !showOverflowMenu
-                }
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_baseline_more_vert_24),
-                    contentDescription = "Overflow menu"
-                )
-            }
-
-            TopBarTimeFrameModeSelectionMenu(
-                showTimeFrameModeDropdownMenu = showTimeFrameDropdownMenu,
-                onSelectTimeFrameMode = onSelectTimeFrameMode,
-                onChangeShowTimeFrameDropdownMenu = { showTimeFrameDropdownMenu = it },
-                onChangeCustomSelectTimeFrameDropdownMenu = { showCustomSelectTimeFrame = it }
+        }
+        IconButton(onClick = {
+            showTimeFrameDropdownMenu = !showTimeFrameDropdownMenu
+        }) {
+            Icon(
+                painter = painterResource(id = R.drawable.ic_baseline_access_time_24),
+                contentDescription = "Select Time"
             )
-
-            TopBarOverflowMenu(
-                showOverflowMenu = showOverflowMenu,
-                onChangeShowOverflowMenu = { showOverflowMenu = it },
-                useTestData = useTestData,
-                onChangeTestData = {
-                    onChangeUseTestData(it)
-                    val intent =
-                        Intent(activity.applicationContext, MainActivity::class.java)
-                    activity.applicationContext.startActivity(intent)
-                }
+        }
+        if (showCustomSelectTimeFrame) {
+            TimeFrameSelector(activity = activity,
+                timeFrame,
+                mode = timeFrameMode,
+                onDismissRequest = { showCustomSelectTimeFrame = false },
+                onSubmitRequest = { time ->
+                    onChangeTimeFrame(time)
+                })
+        }
+        IconButton(onClick = {
+            showOverflowMenu = !showOverflowMenu
+        }) {
+            Icon(
+                painter = painterResource(id = R.drawable.ic_baseline_more_vert_24),
+                contentDescription = "Overflow menu"
             )
-        })
+        }
+
+        TopBarTimeFrameModeSelectionMenu(showTimeFrameModeDropdownMenu = showTimeFrameDropdownMenu,
+            onSelectTimeFrameMode = onSelectTimeFrameMode,
+            onChangeShowTimeFrameDropdownMenu = { showTimeFrameDropdownMenu = it },
+            onChangeCustomSelectTimeFrameDropdownMenu = { showCustomSelectTimeFrame = it })
+
+        TopBarOverflowMenu(showOverflowMenu = showOverflowMenu,
+            onChangeShowOverflowMenu = { showOverflowMenu = it },
+            useTestData = useTestData,
+            onChangeTestData = {
+                onChangeUseTestData(it)
+                val intent = Intent(activity.applicationContext, MainActivity::class.java)
+                activity.applicationContext.startActivity(intent)
+            })
+    })
 }
 
 @Composable
@@ -104,40 +104,38 @@ private fun TopBarTimeFrameModeSelectionMenu(
     onChangeCustomSelectTimeFrameDropdownMenu: (Boolean) -> Unit
 
 ) {
-    DropdownMenu(
-        expanded = showTimeFrameModeDropdownMenu,
-        offset = DpOffset(80.dp, 0.dp),
+    DropdownMenu(expanded = showTimeFrameModeDropdownMenu,
         onDismissRequest = { onChangeShowTimeFrameDropdownMenu(false) }) {
         DropdownMenuItem(onClick = {
             onSelectTimeFrameMode(TimeFrameMode.TODAY)
             onChangeShowTimeFrameDropdownMenu(false)
-        }) {
+        }, text = {
             Text("Today")
-        }
+        })
         DropdownMenuItem(onClick = {
             onSelectTimeFrameMode(TimeFrameMode.LAST_WEEK)
             onChangeShowTimeFrameDropdownMenu(false)
-        }) {
+        }, text = {
             Text("Last Week")
-        }
+        })
         DropdownMenuItem(onClick = {
             onSelectTimeFrameMode(TimeFrameMode.LAST_30_DAYS)
             onChangeShowTimeFrameDropdownMenu(false)
-        }) {
+        }, text = {
             Text("Last 30 Days")
-        }
+        })
         DropdownMenuItem(onClick = {
             onSelectTimeFrameMode(TimeFrameMode.THIS_MONTH)
             onChangeShowTimeFrameDropdownMenu(false)
-        }) {
+        }, text = {
             Text("This Month")
-        }
+        })
         DropdownMenuItem(onClick = {
             onChangeCustomSelectTimeFrameDropdownMenu(true)
             onChangeShowTimeFrameDropdownMenu(false)
-        }) {
+        }, text = {
             Text("Custom")
-        }
+        })
 
     }
 }
@@ -149,24 +147,24 @@ private fun TopBarOverflowMenu(
     useTestData: Boolean,
     onChangeTestData: (Boolean) -> Unit
 ) {
-    DropdownMenu(
-        expanded = showOverflowMenu,
-        offset = DpOffset(80.dp, 0.dp),
+    DropdownMenu(expanded = showOverflowMenu,
         onDismissRequest = { onChangeShowOverflowMenu(false) }) {
         DropdownMenuItem(onClick = {
             onChangeTestData(!useTestData)
             onChangeShowOverflowMenu(false)
 
-        }) {
-            Checkbox(
-                checked = useTestData,
-                onCheckedChange = { checked ->
+        }, text = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(0.dp)
+            ) {
+                Checkbox(checked = useTestData, onCheckedChange = { checked ->
                     onChangeTestData(checked)
                     onChangeShowOverflowMenu(false)
-                }
-            )
-            Text("Use Test Data")
-        }
+                })
+                Text("Use Test Data")
+            }
+        })
     }
 }
 

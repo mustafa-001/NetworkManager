@@ -18,11 +18,13 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
@@ -62,6 +64,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var commonTopbarParametersViewModel: CommonTopbarParametersViewModel
     private lateinit var navController: NavController
 
+    @OptIn(ExperimentalMaterial3Api::class)
     @RequiresApi(Build.VERSION_CODES.P)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -130,32 +133,37 @@ class MainActivity : ComponentActivity() {
             val networkType by commonTopbarParametersViewModel.networkType.observeAsState(
                 NetworkType.GSM
             )
-            Scaffold(
-                topBar = {
-                    CustomTopAppBar(
-                        activity = this,
-                        timeFrameMode = timeFrameMode,
-                        onSelectTimeFrameMode = {
-                            commonTopbarParametersViewModel.selectPredefinedTimeFrame(
-                                it
-                            )
-                        },
-                        timeFrame = timeframe,
-                        onChangeTimeFrame = {
-                            commonTopbarParametersViewModel.setTime(it)
-                        },
-                        networkType = networkType,
-                        onClickNetworkType = { commonTopbarParametersViewModel.toggleNetworkType() },
-                        useTestData = commonTopbarParametersViewModel.useTestData,
-                        onChangeUseTestData = { commonTopbarParametersViewModel.useTestData = it }
-                    )
-                }
-            ) {
-                NetworkUsageTheme {
+            val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+            NetworkUsageTheme() {
+                Scaffold(
+                    modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+                    topBar = {
+                        CustomTopAppBar(
+                            activity = this,
+                            timeFrameMode = timeFrameMode,
+                            onSelectTimeFrameMode = {
+                                commonTopbarParametersViewModel.selectPredefinedTimeFrame(
+                                    it
+                                )
+                            },
+                            timeFrame = timeframe,
+                            onChangeTimeFrame = {
+                                commonTopbarParametersViewModel.setTime(it)
+                            },
+                            networkType = networkType,
+                            onClickNetworkType = { commonTopbarParametersViewModel.toggleNetworkType() },
+                            useTestData = commonTopbarParametersViewModel.useTestData,
+                            onChangeUseTestData = {
+                                commonTopbarParametersViewModel.useTestData = it
+                            },
+                            scrollBehavior = scrollBehavior
+                        )
+                    }
+                ) { innerPadding ->
                     // A surface container using the 'background' color from the theme
                     Surface(
-                        modifier = Modifier.fillMaxSize(),
-                        color = MaterialTheme.colors.background
+                        modifier = Modifier.padding(innerPadding),
+                        color = MaterialTheme.colorScheme.background
                     ) {
 
                         navController = rememberNavController()
@@ -191,12 +199,14 @@ class MainActivity : ComponentActivity() {
         networkType: NetworkType,
         totalUsage: Pair<Long, Long>
     ) {
-        Card(
+        ElevatedCard(
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.secondaryContainer
+            ),
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp),
-            elevation = 8.dp,
-            backgroundColor = MaterialTheme.colors.surface
+                .height(100.dp)
+                .padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 4.dp)
+
         ) {
             val time: Pair<ZonedDateTime, ZonedDateTime> by timeframe.observeAsState(
                 Pair(

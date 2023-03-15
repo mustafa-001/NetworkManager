@@ -2,12 +2,14 @@ package com.example.networkusage
 
 import android.graphics.Color
 import android.util.Log
-import android.util.TypedValue
-import android.view.View
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.material.MaterialTheme
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardColors
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
@@ -44,11 +46,17 @@ fun BarUsagePlot(
     xAxisLabelFormatter: ValueFormatter,
     animationCallbackSetter: (() -> Unit) -> Unit = {}
 ) {
-    Column {
-        val onPrimaryColor = MaterialTheme.colors.onPrimary.toArgb()
+    Card(
+        modifier = Modifier.padding(start = 8.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer
+        )
+    ) {
+        val onSurfaceColor = MaterialTheme.colorScheme.onSurface.toArgb()
         AndroidView(
             modifier = Modifier
                 .height(200.dp)
+                .padding(bottom = 4.dp)
                 .fillMaxWidth(),
             factory = { context ->
                 BarChart(context)
@@ -113,7 +121,7 @@ fun BarUsagePlot(
             barChart.axisLeft.isEnabled = false
             barChart.axisRight.isEnabled = false
             barChart.xAxis.valueFormatter = xAxisLabelFormatter
-            barChart.xAxis.textColor = onPrimaryColor
+            barChart.xAxis.textColor = onSurfaceColor
             barChart.xAxis.position = XAxis.XAxisPosition.BOTTOM
             barChart.description.isEnabled = false
             barChart.barData.barWidth = 0.7f
@@ -133,13 +141,6 @@ fun BarUsagePlot(
             }
         }
     }
-}
-
-private fun getThemeTextColor(view: View): Int {
-    val typedValue = TypedValue()
-    val theme = view.context.theme
-    theme.resolveAttribute(com.google.android.material.R.attr.colorOnPrimary, typedValue, true)
-    return typedValue.data
 }
 
 @Preview(showBackground = true, backgroundColor = Color.WHITE.toLong())

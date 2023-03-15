@@ -1,13 +1,10 @@
 package com.example.networkusage
 
 import android.graphics.Color
-import android.util.TypedValue
-import android.view.View
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.requiredWidth
-import androidx.compose.material.MaterialTheme
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
@@ -34,7 +31,7 @@ import java.time.ZonedDateTime
 @Composable
 fun CumulativeUsageLinePlot(intervals: List<UsageInterval>) {
     Column() {
-        val onPrimaryColor = MaterialTheme.colors.onPrimary.toArgb()
+        val onPrimaryColor = MaterialTheme.colorScheme.onPrimary.toArgb()
         AndroidView(
             factory = { context ->
                 LineChart(context)
@@ -133,12 +130,6 @@ fun CumulativeUsageLinePlot(intervals: List<UsageInterval>) {
     }
 }
 
-private fun getThemeTextColor(view: View): Int {
-    val typedValue = TypedValue()
-    val theme = view.context.theme
-    theme.resolveAttribute(com.google.android.material.R.attr.colorOnPrimary, typedValue, true)
-    return typedValue.data
-}
 
 @Preview(showBackground = true, backgroundColor = Color.WHITE.toLong())
 @Composable
