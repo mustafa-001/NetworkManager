@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.modifier.modifierLocalConsumer
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -138,10 +139,13 @@ fun UsageDetailsForPackage(
             }
         }
 
-    LazyColumn {
+    LazyColumn(
+        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 0.dp, bottom = 8.dp),
+    ) {
         item {
             PackageUsageInfoHeader(
-                usageInfo = appsTotalUsageDuringTimeframe
+                usageInfo = appsTotalUsageDuringTimeframe,
+                modifier = Modifier.padding(start = 0.dp, end = 0.dp, top = 8.dp, bottom = 8.dp)
             )
         }
 
@@ -157,7 +161,8 @@ fun UsageDetailsForPackage(
                         barPlotIntervals,
                         Optional.of(barPlotTouchListener),
                         xAxisLabelFormatter,
-                        { animationCallback = it }
+                        Modifier.padding(top = 8.dp, bottom = 8.dp, start = 0.dp, end = 0.dp),
+                        { animationCallback = it },
                     )
 
                 } else if (page == 1) {
@@ -171,8 +176,9 @@ fun UsageDetailsForPackage(
                 (bucket.endTimeStamp / 1000 <= selectedInterval.get().second.toEpochSecond()
                         && bucket.startTimeStamp / 1000 >= selectedInterval.get().first.toEpochSecond())
             ) {
-                item {
+                item(key = bucket.startTimeStamp) {
                     BucketDetailsRow(bucket, timeFormatter)
+                    Divider()
                 }
             }
         }
@@ -228,10 +234,11 @@ private fun appUsageInfo(
 @Composable
 fun BucketDetailsRow(
     bucket: GeneralUsageInfo,
-    timeFormatter: DateTimeFormatter
+    timeFormatter: DateTimeFormatter,
+    modifier: Modifier = Modifier
 ) {
     Column(
-        modifier = Modifier.padding(start = 8.dp, end = 8.dp, top = 2.dp, bottom = 2.dp),
+        modifier = modifier
     ) {
         Column(
             Modifier
@@ -250,7 +257,6 @@ fun BucketDetailsRow(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(4.dp)
                     ) {
                         Text(
                             text = start.format(timeFormatter),
@@ -266,7 +272,6 @@ fun BucketDetailsRow(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(4.dp)
                     ) {
                         Text(
                             text = start.format(DateTimeFormatter.ofPattern("dd.MM.YY")),
@@ -290,7 +295,6 @@ fun BucketDetailsRow(
             Row(
                 verticalAlignment = Alignment.Bottom,
                 horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.padding(4.dp)
             ) {
                 Text(
                     text = byteToStringRepresentation(bucket.rxBytes + bucket.txBytes),
@@ -339,14 +343,15 @@ fun IntervalUsageInfoPreview() {
 
 
 @Composable
-fun PackageUsageInfoHeader(usageInfo: AppUsageInfo) {
+fun PackageUsageInfoHeader(
+    usageInfo: AppUsageInfo,
+    modifier: Modifier = Modifier
+) {
     ElevatedCard(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.secondaryContainer
         ),
-        modifier = Modifier
-            .padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 4.dp)
-            .height(60.dp)
+        modifier = modifier.then(Modifier.height(60.dp))
     ) {
         Row(
             verticalAlignment = CenterVertically, modifier = Modifier

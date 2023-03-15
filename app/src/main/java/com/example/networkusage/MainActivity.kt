@@ -349,7 +349,8 @@ class MainActivity : ComponentActivity() {
                         intervals = intervals,
                         Optional.empty(),
                         BarEntryXAxisLabelFormatter { -> intervals },
-                        { animationCallback = it }
+                        modifier = Modifier.padding(start = 8.dp, end = 8.dp, top = 4.dp, bottom = 8.dp),
+                        animationCallbackSetter = { animationCallback = it }
                     )
                 }
                 this.items(it) { b ->
