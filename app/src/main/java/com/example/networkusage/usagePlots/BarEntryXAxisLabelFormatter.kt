@@ -1,5 +1,6 @@
-package com.example.networkusage
+package com.example.networkusage.usagePlots
 
+import com.example.networkusage.formatWithReference
 import com.github.mikephil.charting.formatter.ValueFormatter
 import java.time.Duration
 import java.time.Instant

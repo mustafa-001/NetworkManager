@@ -1,4 +1,4 @@
-package com.example.networkusage.usage_details_processor
+package com.example.networkusage.usageDetailsProcessor
 
 import java.time.ZonedDateTime
 

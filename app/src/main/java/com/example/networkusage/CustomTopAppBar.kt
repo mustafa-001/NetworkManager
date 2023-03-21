@@ -10,7 +10,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import com.example.networkusage.usage_details_processor.NetworkType
+import com.example.networkusage.usageDetailsProcessor.NetworkType
 import java.time.ZonedDateTime
 
 @OptIn(ExperimentalMaterial3Api::class)

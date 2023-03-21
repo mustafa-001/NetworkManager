@@ -1,4 +1,4 @@
-package com.example.networkusage.usage_details_processor
+package com.example.networkusage.usageDetailsProcessor
 
 //TODO Rename, possibly TimeframeUsageInfo
 data class GeneralUsageInfo(

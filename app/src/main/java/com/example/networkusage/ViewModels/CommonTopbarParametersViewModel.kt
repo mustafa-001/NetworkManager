@@ -6,7 +6,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.example.networkusage.TimeFrameMode
-import com.example.networkusage.usage_details_processor.NetworkType
+import com.example.networkusage.usageDetailsProcessor.NetworkType
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime

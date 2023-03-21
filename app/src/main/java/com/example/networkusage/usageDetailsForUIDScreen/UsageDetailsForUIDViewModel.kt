@@ -1,9 +1,9 @@
-package com.example.networkusage.ViewModels
+package com.example.networkusage.usageDetailsForUIDScreen
 
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import com.example.networkusage.usage_details_processor.GeneralUsageInfo
-import com.example.networkusage.usage_details_processor.UsageDetailsProcessorInterface
+import com.example.networkusage.usageDetailsProcessor.GeneralUsageInfo
+import com.example.networkusage.usageDetailsProcessor.UsageDetailsProcessorInterface
 import java.time.ZonedDateTime
 
 class UsageDetailsForUIDViewModel(

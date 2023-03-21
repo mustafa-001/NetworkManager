@@ -15,20 +15,23 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
-import androidx.compose.ui.modifier.modifierLocalConsumer
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import com.example.networkusage.ViewModels.BarPlotIntervalListViewModel
 import com.example.networkusage.ViewModels.CommonTopbarParametersViewModel
-import com.example.networkusage.ViewModels.UsageDetailsForUIDViewModel
+import com.example.networkusage.usageDetailsForUIDScreen.UsageDetailsForUIDViewModel
 import com.example.networkusage.ui.theme.DownloadColor
 import com.example.networkusage.ui.theme.NetworkUsageTheme
 import com.example.networkusage.ui.theme.UploadColor
-import com.example.networkusage.usage_details_processor.AppUsageInfo
-import com.example.networkusage.usage_details_processor.GeneralUsageInfo
-import com.example.networkusage.usage_details_processor.UsageDetailsProcessorInterface
+import com.example.networkusage.usageDetailsProcessor.AppUsageInfo
+import com.example.networkusage.usageDetailsProcessor.GeneralUsageInfo
+import com.example.networkusage.usageDetailsProcessor.UsageDetailsProcessorInterface
+import com.example.networkusage.usagePlots.BarEntryXAxisLabelFormatter
+import com.example.networkusage.usagePlots.BarPlotTouchListener
+import com.example.networkusage.usagePlots.BarUsagePlot
+import com.example.networkusage.usagePlots.CumulativeUsageLinePlot
 import com.google.accompanist.pager.ExperimentalPagerApi
 import com.google.accompanist.pager.HorizontalPager
 import java.time.Instant
@@ -40,7 +43,7 @@ import java.util.*
 
 @OptIn(ExperimentalPagerApi::class)
 @Composable
-fun UsageDetailsForPackage(
+fun UsageDetailsForUIDScreen(
     commonTopBarParametersViewModel: CommonTopbarParametersViewModel,
     packageManager: PackageManager,
     uid: Int,

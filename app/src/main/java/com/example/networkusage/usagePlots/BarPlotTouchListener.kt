@@ -1,4 +1,4 @@
-package com.example.networkusage
+package com.example.networkusage.usagePlots
 
 import android.util.Log
 import androidx.lifecycle.LiveData

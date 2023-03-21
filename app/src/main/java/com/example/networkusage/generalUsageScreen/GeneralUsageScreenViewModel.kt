@@ -1,11 +1,12 @@
-package com.example.networkusage.ViewModels
+package com.example.networkusage.generalUsageScreen
 
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.networkusage.usage_details_processor.AppUsageInfo
-import com.example.networkusage.usage_details_processor.UsageDetailsProcessorInterface
+import com.example.networkusage.ViewModels.CommonTopbarParametersViewModel
+import com.example.networkusage.usageDetailsProcessor.AppUsageInfo
+import com.example.networkusage.usageDetailsProcessor.UsageDetailsProcessorInterface
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
