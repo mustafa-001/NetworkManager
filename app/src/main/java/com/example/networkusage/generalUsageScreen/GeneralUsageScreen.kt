@@ -2,12 +2,16 @@ package com.example.networkusage
 
 import android.graphics.Bitmap
 import android.util.Log
+import androidx.compose.animation.*
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.res.painterResource
@@ -38,13 +42,14 @@ import java.util.*
 fun GeneralInfoHeader(
     timeframe: LiveData<Pair<ZonedDateTime, ZonedDateTime>>,
     networkType: NetworkType,
-    totalUsage: Pair<Long, Long>
+    totalUsage: Pair<Long, Long>,
+    modifier: Modifier = Modifier
 ) {
     ElevatedCard(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.secondaryContainer
         ),
-        modifier = Modifier
+        modifier = modifier
             .height(100.dp)
             .padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 4.dp)
 
@@ -54,46 +59,56 @@ fun GeneralInfoHeader(
                 ZonedDateTime.now(), ZonedDateTime.now()
             )
         )
-        Column {
-            Row(
-                horizontalArrangement = Arrangement.Center, modifier = Modifier.padding(8.dp)
-            ) {
-                Text(
-                    byteToStringRepresentation(totalUsage.first),
-                    modifier = Modifier.weight(1f),
-                    textAlign = TextAlign.End,
-                    fontSize = 14.sp
-                )
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_sharp_arrow_downward_24),
-                    contentDescription = ""
-                )
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_baseline_arrow_upward_24),
-                    contentDescription = ""
-                )
-                Text(
-                    byteToStringRepresentation(totalUsage.second),
-                    Modifier.weight(1f),
-                    fontSize = 14.sp
-                )
-            }
-            Row(
-                horizontalArrangement = Arrangement.SpaceAround, modifier = Modifier.padding(8.dp)
-            ) {
-                Text(
-                    time.first.formatWithReference(
-                        ZonedDateTime.now()
-                    ), style = TextStyle(fontSize = 14.sp), modifier = Modifier.padding(10.dp, 0.dp)
-                )
-                Spacer(modifier = Modifier.weight(1f))
-                Text(
-                    time.second.formatWithReference(
-                        ZonedDateTime.now()
-                    ), style = TextStyle(fontSize = 14.sp), modifier = Modifier.padding(10.dp, 0.dp)
-                )
+        var visible by remember { mutableStateOf(false) }
+        AnimatedVisibility(visible = visible) {
+
+            Column {
+                Row(
+                    horizontalArrangement = Arrangement.Center, modifier = Modifier.padding(8.dp)
+                ) {
+                    Text(
+                        byteToStringRepresentation(totalUsage.first),
+                        modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.End,
+                        fontSize = 14.sp
+                    )
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_sharp_arrow_downward_24),
+                        contentDescription = ""
+                    )
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_baseline_arrow_upward_24),
+                        contentDescription = ""
+                    )
+                    Text(
+                        byteToStringRepresentation(totalUsage.second),
+                        Modifier.weight(1f),
+                        fontSize = 14.sp
+                    )
+                }
+                Row(
+                    horizontalArrangement = Arrangement.SpaceAround,
+                    modifier = Modifier.padding(8.dp)
+                ) {
+                    Text(
+                        time.first.formatWithReference(
+                            ZonedDateTime.now()
+                        ),
+                        style = TextStyle(fontSize = 14.sp),
+                        modifier = Modifier.padding(10.dp, 0.dp)
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    Text(
+                        time.second.formatWithReference(
+                            ZonedDateTime.now()
+                        ),
+                        style = TextStyle(fontSize = 14.sp),
+                        modifier = Modifier.padding(10.dp, 0.dp)
+                    )
+                }
             }
         }
+        LaunchedEffect(true, { visible = true })
 
     }
 }
@@ -112,6 +127,7 @@ fun GeneralInfoHeaderPreview() {
     }
 }
 
+@OptIn(ExperimentalAnimationApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun GeneralUsageScreen(
     generalUsageScreenViewModel: GeneralUsageScreenViewModel,
@@ -153,6 +169,7 @@ fun GeneralUsageScreen(
                 totalUsage = usageTotal
             )
         }
+
         val timeframe = commonTopbarParametersViewModel.timeFrame.value!!
         item {
             val barPlotIntervalListViewModel by remember(timeframe) {
@@ -179,13 +196,12 @@ fun GeneralUsageScreen(
                 animationCallbackSetter = { animationCallback = it })
         }
 
-        for (b in buckets) {
-            item {
-                UsageByPackageRow(usage = b, biggestUsage, onAppInfoRowClick)
-            }
+        items(items = buckets, key = { it.packageName }) {
+            UsageByPackageRow(usage = it, biggestUsage, onAppInfoRowClick)
         }
     }
 }
+
 
 @Preview(showBackground = true)
 @Composable
@@ -204,7 +220,8 @@ fun ApplicationUsageRowPreview() {
 
 @Composable
 fun UsageByPackageRow(usage: AppUsageInfo, biggestUsage: Long, onClick: (Int) -> Unit) {
-    Row(
+    Row(verticalAlignment = Alignment.CenterVertically,
+        modifier =
         Modifier
             .clickable(onClick = {
                 onClick(usage.uid)
@@ -217,7 +234,7 @@ fun UsageByPackageRow(usage: AppUsageInfo, biggestUsage: Long, onClick: (Int) ->
                 else -> usage.icon!!.toBitmap()
             }.asImageBitmap(),
             "",
-            modifier = Modifier.size(40.dp),
+            modifier = Modifier.size(40.dp).padding(4.dp),
             tint = androidx.compose.ui.graphics.Color.Unspecified
         )
         Spacer(Modifier.width(10.dp))

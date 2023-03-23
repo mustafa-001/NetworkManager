@@ -3,6 +3,7 @@ package com.example.networkusage
 import android.app.usage.NetworkStats
 import android.content.pm.PackageManager
 import android.util.Log
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.*
@@ -148,7 +149,7 @@ fun UsageDetailsForUIDScreen(
         item {
             PackageUsageInfoHeader(
                 usageInfo = appsTotalUsageDuringTimeframe,
-                modifier = Modifier.padding(start = 0.dp, end = 0.dp, top = 8.dp, bottom = 8.dp)
+                modifier = Modifier.padding(start = 0.dp, end = 0.dp, top = 8.dp, bottom = 4.dp)
             )
         }
 
@@ -164,7 +165,7 @@ fun UsageDetailsForUIDScreen(
                         barPlotIntervals,
                         Optional.of(barPlotTouchListener),
                         xAxisLabelFormatter,
-                        Modifier.padding(top = 8.dp, bottom = 8.dp, start = 0.dp, end = 0.dp),
+                        Modifier.padding(top = 4.dp, bottom = 4.dp, start = 0.dp, end = 0.dp),
                         { animationCallback = it },
                     )
 
@@ -180,7 +181,11 @@ fun UsageDetailsForUIDScreen(
                         && bucket.startTimeStamp / 1000 >= selectedInterval.get().first.toEpochSecond())
             ) {
                 item(key = bucket.startTimeStamp) {
-                    BucketDetailsRow(bucket, timeFormatter)
+                    BucketDetailsRow(
+                        bucket,
+                        timeFormatter,
+                        Modifier.padding(top = 4.dp, start = 4.dp, end = 4.dp)
+                    )
                     Divider()
                 }
             }
@@ -276,22 +281,23 @@ fun BucketDetailsRow(
                         modifier = Modifier
                             .fillMaxWidth()
                     ) {
-                        Text(
-                            text = start.format(DateTimeFormatter.ofPattern("dd.MM.YY")),
-                            fontSize = MaterialTheme.typography.labelLarge.fontSize,
-                        )
+
                         Row(horizontalArrangement = Arrangement.SpaceBetween) {
                             Text(
                                 text = start.format(DateTimeFormatter.ofPattern("HH:mm")),
                                 fontSize = MaterialTheme.typography.labelLarge.fontSize,
-                                modifier = Modifier.padding(start = 8.dp, end = 8.dp)
+                                modifier = Modifier.padding(end = 8.dp)
                             )
                             Text(
                                 text = end.format(DateTimeFormatter.ofPattern("HH:mm")),
                                 fontSize = MaterialTheme.typography.labelLarge.fontSize,
-                                modifier = Modifier.padding(start = 8.dp, end = 8.dp)
+                                modifier = Modifier.padding(start = 8.dp)
                             )
                         }
+                        Text(
+                            text = start.format(DateTimeFormatter.ofPattern("dd.MM.YY")),
+                            fontSize = MaterialTheme.typography.labelLarge.fontSize,
+                        )
                     }
                 }
             }
@@ -315,13 +321,6 @@ fun BucketDetailsRow(
                     text = byteToStringRepresentation(bucket.rxBytes),
                     fontSize = MaterialTheme.typography.labelMedium.fontSize,
                     color = DownloadColor,
-                    modifier = Modifier.padding(start = 8.dp, end = 8.dp)
-                )
-                Text(
-                    //difference between start and end in minutes
-                    text = "${(bucket.endTimeStamp - bucket.startTimeStamp) / 1000 / 60} min",
-                    fontSize = MaterialTheme.typography.labelLarge.fontSize,
-                    color = MaterialTheme.typography.labelMedium.color,
                     modifier = Modifier.padding(start = 8.dp, end = 8.dp)
                 )
             }
@@ -350,43 +349,47 @@ fun PackageUsageInfoHeader(
     usageInfo: AppUsageInfo,
     modifier: Modifier = Modifier
 ) {
+    var visible by remember { mutableStateOf(false) }
     ElevatedCard(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.secondaryContainer
         ),
         modifier = modifier.then(Modifier.height(60.dp))
     ) {
-        Row(
-            verticalAlignment = CenterVertically, modifier = Modifier
-                .padding(8.dp)
-        ) {
-            if (usageInfo.icon == null) {
-                val vector = ImageVector.vectorResource(id = R.drawable.ic_baseline_settings_24)
-                val painter = rememberVectorPainter(image = vector)
-                Icon(painter, "")
-            } else {
-                Icon(
-                    usageInfo.icon!!.toBitmap().asImageBitmap(),
-                    "",
-                    modifier = Modifier.size(40.dp),
-                    tint = Color.Unspecified
+        AnimatedVisibility(visible = visible) {
+            Row(
+                verticalAlignment = CenterVertically, modifier = Modifier
+                    .padding(8.dp)
+            ) {
+                if (usageInfo.icon == null) {
+                    val vector = ImageVector.vectorResource(id = R.drawable.ic_baseline_settings_24)
+                    val painter = rememberVectorPainter(image = vector)
+                    Icon(painter, "")
+                } else {
+                    Icon(
+                        usageInfo.icon!!.toBitmap().asImageBitmap(),
+                        "",
+                        modifier = Modifier.size(40.dp),
+                        tint = Color.Unspecified
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    modifier = Modifier.width(IntrinsicSize.Max),
+                    text = usageInfo.name ?: (usageInfo.packageName), maxLines = 1
+                )
+                Spacer(
+                    modifier = Modifier
+                        .width(8.dp)
+                        .weight(2f)
+                )
+                Text(
+                    modifier = Modifier.width(IntrinsicSize.Max),
+                    text = byteToStringRepresentation(usageInfo.rxBytes + usageInfo.txBytes)
                 )
             }
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                modifier = Modifier.width(IntrinsicSize.Max),
-                text = usageInfo.name ?: (usageInfo.packageName), maxLines = 1
-            )
-            Spacer(
-                modifier = Modifier
-                    .width(8.dp)
-                    .weight(2f)
-            )
-            Text(
-                modifier = Modifier.width(IntrinsicSize.Max),
-                text = byteToStringRepresentation(usageInfo.rxBytes + usageInfo.txBytes)
-            )
         }
+        LaunchedEffect(key1 = true) { visible = true }
     }
 }
 
