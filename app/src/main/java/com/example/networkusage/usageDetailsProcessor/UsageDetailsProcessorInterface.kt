@@ -1,22 +1,21 @@
 package com.example.networkusage.usageDetailsProcessor
 
-import java.time.ZonedDateTime
 
 interface UsageDetailsProcessorInterface {
 
 
     fun getUsageByUIDGroupedByTime(
         uid: Int,
-        timeFrame: Pair<ZonedDateTime, ZonedDateTime>
-    ): List<GeneralUsageInfo>
+        timeFrame: Timeframe
+    ): AppDetailedUsageInfo
 
     fun getUsageGroupedByTime(
-        timeFrame: Pair<ZonedDateTime, ZonedDateTime>,
+        timeFrame: Timeframe,
         networkType: NetworkType
-    ): List<GeneralUsageInfo>
+    ): List<UsageData>
 
     fun getUsageGroupedByUID(
-        timeFrame: Pair<ZonedDateTime, ZonedDateTime>,
+        timeFrame: Timeframe,
         networkType: NetworkType
     ): List<AppUsageInfo>
 }

@@ -15,6 +15,7 @@ import com.example.networkusage.formatWithReference
 import com.example.networkusage.ui.theme.DownloadColor
 import com.example.networkusage.ui.theme.NetworkUsageTheme
 import com.example.networkusage.ui.theme.UploadColor
+import com.example.networkusage.utils.toZonedDateTime
 import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.components.YAxis
@@ -30,7 +31,7 @@ import java.time.ZonedDateTime
 //TODO Add a zoom or sliding view.
 //TODO Make x-axis labels nice and round values. eg. 05.00 10.00
 @Composable
-fun CumulativeUsageLinePlot(intervals: List<UsageInterval>) {
+fun CumulativeUsageLinePlot(intervals: List<PlotDataPoint>) {
     Column() {
         val onPrimaryColor = MaterialTheme.colorScheme.onPrimary.toArgb()
         AndroidView(
@@ -45,9 +46,7 @@ fun CumulativeUsageLinePlot(intervals: List<UsageInterval>) {
                     if (it == null) {
                         0
                     } else {
-                        (it.end.toEpochSecond() - it.start.toEpochSecond(
-
-                        ))
+                        (it.endSeconds - it.startSeconds)
                     }
                 }
 
@@ -60,13 +59,13 @@ fun CumulativeUsageLinePlot(intervals: List<UsageInterval>) {
                     runningTx += it.rxBytes.toFloat() + it.txBytes.toFloat()
                     rxEntries.add(
                         Entry(
-                            it.start.toEpochSecond().toFloat() + timeDifference / 2,
+                            it.startSeconds.toFloat() + timeDifference / 2,
                             runningRx
                         )
                     )
                     txEntries.add(
                         Entry(
-                            it.start.toEpochSecond().toFloat() + timeDifference / 2,
+                            it.endSeconds.toFloat() + timeDifference / 2,
                             runningTx
                         )
                     )
@@ -113,10 +112,7 @@ fun CumulativeUsageLinePlot(intervals: List<UsageInterval>) {
                 view.axisRight.isEnabled = false
                 view.xAxis.valueFormatter = object : ValueFormatter() {
                     override fun getFormattedValue(value: Float): String {
-                        return ZonedDateTime.ofInstant(
-                            Instant.ofEpochSecond(value.toLong()),
-                            ZoneId.systemDefault()
-                        ).formatWithReference(
+                        return value.toLong().minus(60).toZonedDateTime().formatWithReference(
                             ZonedDateTime.now()
                         )
                     }
@@ -135,15 +131,15 @@ fun CumulativeUsageLinePlot(intervals: List<UsageInterval>) {
 @Preview(showBackground = true, backgroundColor = Color.WHITE.toLong())
 @Composable
 fun BasicPlotPreview() {
-    val points = mutableListOf<UsageInterval>()
+    val points = mutableListOf<PlotDataPoint>()
     for (i in 10 downTo 0) {
-        val p = UsageInterval(
+        val p = PlotDataPoint(
             (10 - i.toLong()) * 100000,
             (9 - i.toLong()) * 20000,
-            ZonedDateTime.now().minusHours((i * 2).toLong()),
+            ZonedDateTime.now().minusHours((i * 2).toLong()).toEpochSecond(),
             ZonedDateTime.now().minusHours(
                 (i * 2 - 2).toLong()
-            )
+            ).toEpochSecond()
         )
         points.add(p)
     }

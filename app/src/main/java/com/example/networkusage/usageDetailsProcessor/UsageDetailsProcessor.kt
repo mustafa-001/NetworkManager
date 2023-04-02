@@ -7,6 +7,8 @@ import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.util.Log
 import kotlinx.coroutines.runBlocking
+import java.time.Instant
+import java.time.ZoneId
 import java.time.ZonedDateTime
 
 class UsageDetailsProcessor(
@@ -20,34 +22,45 @@ class UsageDetailsProcessor(
 
     override fun getUsageByUIDGroupedByTime(
         uid: Int,
-        timeFrame: Pair<ZonedDateTime, ZonedDateTime>
-    ): List<GeneralUsageInfo> {
-        Log.d("Network Usage", "timeFrame set to: ${timeFrame.first} and ${timeFrame.second}")
+        timeFrame: Timeframe
+    ): AppDetailedUsageInfo {
+        Log.d("Network Usage", "timeFrame set to: ${timeFrame.start} and ${timeFrame.end}")
         val usage = runBlocking {
             networkStatsManager.queryDetailsForUid(
                 ConnectivityManager.TYPE_MOBILE,
                 null,
-                timeFrame.first.minusHours(2).toEpochSecond() * 1000,
-                timeFrame.second.plusHours(2).toEpochSecond() * 1000,
+                timeFrame.start.minusHours(2).toEpochSecond() * 1000,
+                timeFrame.end.plusHours(2).toEpochSecond() * 1000,
                 uid
             )
         }
-        val r = mutableListOf<GeneralUsageInfo>()
+        val r = mutableListOf<UsageData>()
         while (usage.hasNextBucket()) {
             val b = NetworkStats.Bucket()
             usage.getNextBucket(b)
             r.add(
-                GeneralUsageInfo(
+                UsageData(
                     rxBytes = b.rxBytes,
                     txBytes = b.txBytes,
-                    startTimeStamp = b.startTimeStamp,
-                    endTimeStamp = b.endTimeStamp
+                    time = Timeframe(
+                        start = ZonedDateTime.ofInstant(Instant.ofEpochMilli(b.startTimeStamp), ZoneId.systemDefault()),
+                        end = ZonedDateTime.ofInstant(Instant.ofEpochMilli(b.endTimeStamp), ZoneId.systemDefault())
+                    )
                 )
             )
             Log.d("netUsage", b.txBytes.toString())
             Log.d("netUsage", b.rxBytes.toString())
         }
-        return r
+        val p = packages.find { it.applicationInfo.uid == uid }!!
+        return AppDetailedUsageInfo(
+            appInfo = AppInfo(
+                uid = uid,
+                name = packageManager.getApplicationLabel(p.applicationInfo).toString(),
+                packageName = p.packageName,
+                icon = p.applicationInfo.loadIcon(packageManager),
+            ),
+            usageData = r
+        )
     }
 
     private fun calculateBuckets(timeFrame: Pair<ZonedDateTime, ZonedDateTime>): List<NetworkStats.Bucket> {
@@ -95,12 +108,14 @@ class UsageDetailsProcessor(
                 }
                 if (bucket.uid == NetworkStats.Bucket.UID_REMOVED) {
                     r[bucket.uid] = AppUsageInfo(
-                        bucket.uid,
-                        "Removed",
-                        "Removed",
+                        AppInfo(
+                            bucket.uid,
+                            "Removed",
+                            "Removed",
+                            null
+                        ),
                         bucket.txBytes,
                         bucket.rxBytes,
-                        null
                     )
                     continue
                 }
@@ -117,31 +132,32 @@ class UsageDetailsProcessor(
                     PackageManager.GET_META_DATA
                 )
                 r[bucket.uid] = AppUsageInfo(
-                    p.applicationInfo.uid,
-                    packageManager.getApplicationLabel(p.applicationInfo).toString(),
-                    p.packageName,
+                    AppInfo(
+                        bucket.uid,
+                        packageManager.getApplicationLabel(p.applicationInfo).toString(),
+                        p.packageName,
+                        p.applicationInfo.loadIcon(packageManager)
+                    ),
                     bucket.txBytes,
                     bucket.rxBytes,
-                    p.applicationInfo.loadIcon(packageManager)
                 )
             } else {
-                r[bucket.uid]!!.let {
-                    it.txBytes += bucket.txBytes
-                    it.rxBytes += bucket.rxBytes
-                }
-
+                val currentBucket = r[bucket.uid]!!
+                r[bucket.uid] = currentBucket.copy(
+                    txBytes = currentBucket.txBytes + bucket.txBytes,
+                    rxBytes = currentBucket.rxBytes + bucket.rxBytes
+                )
             }
         }
-        r[NetworkStats.Bucket.UID_REMOVED]?.icon = r[1000]?.icon
         val r1 = r.values.toMutableList()
         r1.sortByDescending { (it.rxBytes + it.txBytes) }
         return r1
     }
 
     override fun getUsageGroupedByTime(
-        timeFrame: Pair<ZonedDateTime, ZonedDateTime>,
+        timeFrame: Timeframe,
         networkType: NetworkType
-    ): List<GeneralUsageInfo> {
+    ): List<UsageData> {
         val buckets = networkStatsManager.queryDetails(
             if (networkType == NetworkType.GSM) {
                 ConnectivityManager.TYPE_MOBILE
@@ -149,25 +165,31 @@ class UsageDetailsProcessor(
                 ConnectivityManager.TYPE_WIFI
             },
             null,
-            timeFrame.first.toInstant().toEpochMilli(),
-            timeFrame.second.toInstant().toEpochMilli()
+            timeFrame.start.toInstant().toEpochMilli(),
+            timeFrame.end.toInstant().toEpochMilli()
         )
-        val r: MutableList<GeneralUsageInfo> = mutableListOf()
+        val r: MutableList<UsageData> = mutableListOf()
         var lastStartTime: Long = 0
 
         val bucket = NetworkStats.Bucket()
         while (buckets.hasNextBucket()) {
             buckets!!.getNextBucket(bucket)
             if (bucket.startTimeStamp == lastStartTime) {
-                r.last().rxBytes += bucket.txBytes
-                r.last().txBytes += bucket.txBytes
+                val last = r.last().copy(
+                    rxBytes = r.last().rxBytes + bucket.rxBytes,
+                    txBytes = r.last().txBytes + bucket.txBytes
+                )
+                r.removeAt(r.lastIndex)
+                r.add(last)
             } else if (bucket.startTimeStamp > lastStartTime) {
                 r.add(
-                    GeneralUsageInfo(
+                    UsageData(
                         rxBytes = bucket.rxBytes,
                         txBytes = bucket.txBytes,
-                        startTimeStamp = bucket.startTimeStamp,
-                        endTimeStamp = bucket.endTimeStamp
+                        time = Timeframe(
+                            start = ZonedDateTime.ofInstant(Instant.ofEpochMilli(bucket.startTimeStamp), ZoneId.systemDefault()),
+                            end = ZonedDateTime.ofInstant(Instant.ofEpochMilli(bucket.endTimeStamp), ZoneId.systemDefault())
+                        )
                     )
                 )
                 lastStartTime = bucket.startTimeStamp
@@ -178,7 +200,7 @@ class UsageDetailsProcessor(
 
 
     override fun getUsageGroupedByUID(
-        timeFrame: Pair<ZonedDateTime, ZonedDateTime>,
+        timeFrame: Timeframe,
         networkType: NetworkType
     ): List<AppUsageInfo> {
         val r = mutableMapOf<Int, AppUsageInfo>()
@@ -189,8 +211,8 @@ class UsageDetailsProcessor(
                 ConnectivityManager.TYPE_WIFI
             },
             null,
-            timeFrame.first.toEpochSecond() * 1000,
-            timeFrame.second.toEpochSecond() * 1000,
+            timeFrame.start.toEpochSecond() * 1000,
+            timeFrame.end.toEpochSecond() * 1000,
         )
         val bucket = NetworkStats.Bucket()
         if (!buckets.hasNextBucket()) {
@@ -202,16 +224,16 @@ class UsageDetailsProcessor(
             if (!r.containsKey(bucket.uid)) {
                 createNewUIDBucket(bucket, r)
             } else {
-                r[bucket.uid]!!.let {
-                    it.txBytes += bucket.txBytes
-                    it.rxBytes += bucket.rxBytes
-                }
+                r[bucket.uid] = r[bucket.uid]!!.copy(
+                    txBytes = r[bucket.uid]!!.txBytes + bucket.txBytes,
+                    rxBytes = r[bucket.uid]!!.rxBytes + bucket.rxBytes
+                )
 
             }
         }
-        r[NetworkStats.Bucket.UID_REMOVED]?.icon = r[1000]?.icon
-        r[NetworkStats.Bucket.UID_TETHERING]?.icon = r[1000]?.icon
-        r[NetworkStats.Bucket.UID_ALL]?.icon = r[1000]?.icon
+        r[NetworkStats.Bucket.UID_REMOVED]?.appInfo?.icon = r[1000]?.appInfo?.icon
+        r[NetworkStats.Bucket.UID_TETHERING]?.appInfo?.icon = r[1000]?.appInfo?.icon
+        r[NetworkStats.Bucket.UID_ALL]?.appInfo?.icon = r[1000]?.appInfo?.icon
         val r1 = r.values.toMutableList()
         r1.sortByDescending { (it.rxBytes + it.txBytes) }
         return r1
@@ -223,34 +245,40 @@ class UsageDetailsProcessor(
     ) {
         if (bucket.uid == NetworkStats.Bucket.UID_ALL) {
             r[bucket.uid] = AppUsageInfo(
-                bucket.uid,
-                "All",
-                "All",
+                AppInfo(
+                    bucket.uid,
+                    "All",
+                    "All",
+                    null
+                ),
                 bucket.txBytes,
                 bucket.rxBytes,
-                null
             )
             return
         }
         if (bucket.uid == NetworkStats.Bucket.UID_TETHERING) {
             r[bucket.uid] = AppUsageInfo(
-                bucket.uid,
-                "Tethering",
-                "Tethering",
+                AppInfo(
+                    bucket.uid,
+                    "Tethering",
+                    "Tethering",
+                    null
+                ),
                 bucket.txBytes,
                 bucket.rxBytes,
-                null
             )
             return
         }
         if (bucket.uid == NetworkStats.Bucket.UID_REMOVED) {
             r[bucket.uid] = AppUsageInfo(
-                bucket.uid,
-                "Removed",
-                "Removed",
+                AppInfo(
+                    bucket.uid,
+                    "Removed",
+                    "Removed",
+                    null
+                ),
                 bucket.txBytes,
                 bucket.rxBytes,
-                null
             )
             return
         }
@@ -269,12 +297,14 @@ class UsageDetailsProcessor(
 
         //TODO Move name, packageName, icon to out of class initializer
         r[bucket.uid] = AppUsageInfo(
-            p.applicationInfo.uid,
-            packageManager.getApplicationLabel(p.applicationInfo).toString(),
-            p.packageName,
+            AppInfo(
+                bucket.uid,
+                packageManager.getApplicationLabel(p.applicationInfo).toString(),
+                p.packageName,
+                p.applicationInfo.loadIcon(packageManager)
+            ),
             bucket.txBytes,
             bucket.rxBytes,
-            p.applicationInfo.loadIcon(packageManager)
         )
     }
 }

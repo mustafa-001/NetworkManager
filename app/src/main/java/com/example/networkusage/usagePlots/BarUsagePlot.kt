@@ -29,17 +29,17 @@ import java.time.ZonedDateTime
 import java.util.*
 
 //TODO Rename, possibly BarUsagePlotDataPoint, BarUsagePlotIntervalData, BarUsagePlotEntry
-data class UsageInterval(
+data class PlotDataPoint(
     val rxBytes: Long,
     val txBytes: Long,
-    val start: ZonedDateTime,
-    val end: ZonedDateTime
+    val startSeconds: Long,
+    val endSeconds: Long
 )
 
 //TODO Add a zoom or sliding view.
 @Composable
 fun BarUsagePlot(
-    intervals: List<UsageInterval>,
+    intervals: List<PlotDataPoint>,
     touchListener: Optional<OnChartValueSelectedListener>,
     xAxisLabelFormatter: ValueFormatter,
     modifier: Modifier = Modifier,
@@ -63,32 +63,19 @@ fun BarUsagePlot(
         ) { barChart ->
             Log.d("Network Usage", "Composing bar usage plot. $intervals")
             barChart.setExtraOffsets(0f, 0f, 0f, 0f)
-            val timeDifference = intervals.getOrNull(0).let {
-                if (it == null) {
-                    0
-                } else {
-                    (it.end.toEpochSecond() - it.start.toEpochSecond(
-                    ))
-                }
-            }
 
             val rxEntries = mutableListOf<BarEntry>()
             val txEntries = mutableListOf<BarEntry>()
+
             intervals.mapIndexed { index, it ->
-                Log.d(
-                    "Network Usage", "Adding interval to entries as bar entry " +
-                            "index: $index interval: $it"
-                )
                 rxEntries.add(
                     BarEntry(
-//                            it.start.toEpochSecond().toFloat() + timeDifference / 2,
                         index.toFloat(),
                         it.rxBytes.toFloat()
                     )
                 )
                 txEntries.add(
                     BarEntry(
-//                            it.start.toEpochSecond().toFloat() + timeDifference / 2,
                         index.toFloat(),
                         it.rxBytes.toFloat() + it.txBytes.toFloat()
                     )
@@ -145,15 +132,15 @@ fun BarUsagePlot(
 @Preview(showBackground = true, backgroundColor = Color.WHITE.toLong())
 @Composable
 fun BasicBarPlotPreview() {
-    val points = mutableListOf<UsageInterval>()
+    val points = mutableListOf<PlotDataPoint>()
     for (i in 1..10) {
-        val p = UsageInterval(
+        val p = PlotDataPoint(
             (i.toLong()) * 100,
             (i.toLong()) * 20,
-            ZonedDateTime.now().minusHours((i * 2 - 2).toLong()),
+            ZonedDateTime.now().minusHours((i * 2 - 2).toLong()).toEpochSecond(),
             ZonedDateTime.now().minusHours(
                 (i * 2).toLong()
-            )
+            ).toEpochSecond()
         )
         points.add(p)
     }

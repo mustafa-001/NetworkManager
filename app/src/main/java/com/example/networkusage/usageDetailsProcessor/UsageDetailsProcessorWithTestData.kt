@@ -15,49 +15,65 @@ class UsageDetailsProcessorWithTestData(
 
     override fun getUsageByUIDGroupedByTime(
         uid: Int,
-        timeFrame: Pair<ZonedDateTime, ZonedDateTime>
-    ): List<GeneralUsageInfo> {
+        timeFrame: Timeframe
+    ): AppDetailedUsageInfo {
 
         val random = Random(1)
-        Log.d("NetworkUsage", "Generating random data for uid $uid, timeFrame: $timeFrame, random seed: 1")
-        var next2HourIntervalStart = timeFrame.first
-        val r = mutableListOf<GeneralUsageInfo>()
-        while (next2HourIntervalStart.isBefore(timeFrame.second)) {
+        Log.d(
+            "NetworkUsage",
+            "Generating random data for uid $uid, timeFrame: $timeFrame, random seed: 1"
+        )
+        var next2HourIntervalStart = timeFrame.start
+        val r = mutableListOf<UsageData>()
+        while (next2HourIntervalStart.isBefore(timeFrame.end)) {
             r.add(
-                GeneralUsageInfo(
+                UsageData(
+                    Timeframe(
+                        next2HourIntervalStart,
+                        when (next2HourIntervalStart.plusHours(3).isAfter(ZonedDateTime.now())) {
+                            false -> next2HourIntervalStart.plusHours(2)
+                            true -> ZonedDateTime.now()
+                        },
+                    ),
                     random.nextLong(512) * 1024,
                     random.nextLong(512) * 1024,
-                    next2HourIntervalStart.toInstant().toEpochMilli(),
-                    when (next2HourIntervalStart.plusHours(3).isAfter(ZonedDateTime.now())){
-                        false -> next2HourIntervalStart.plusHours(2).toInstant().toEpochMilli()
-                        true -> ZonedDateTime.now().toInstant().toEpochMilli()
-                    }
                 )
             )
             next2HourIntervalStart = next2HourIntervalStart.plusHours(2)
 
         }
-        return r
+        val androidPackage = packages[random.nextInt(packages.size)]
+        return AppDetailedUsageInfo(
+            AppInfo(
+                androidPackage.applicationInfo.uid,
+                androidPackage.packageName,
+                androidPackage.packageName,
+                androidPackage.applicationInfo.loadIcon(packageManager)
+            ),
+            r
+        )
     }
 
     override fun getUsageGroupedByTime(
-        timeFrame: Pair<ZonedDateTime, ZonedDateTime>,
+        timeFrame: Timeframe,
         networkType: NetworkType
-    ): List<GeneralUsageInfo> {
+    ): List<UsageData> {
         val random = Random(2)
         Log.d("NetworkUsage", "Generating random data for timeFrame: $timeFrame, random seed: 2")
-        var next2HourIntervalStart = timeFrame.first
-        val r = mutableListOf<GeneralUsageInfo>()
-        while (next2HourIntervalStart.isBefore(timeFrame.second)) {
+        var next2HourIntervalStart = timeFrame.start
+        val r = mutableListOf<UsageData>()
+        while (next2HourIntervalStart.isBefore(timeFrame.end)) {
             r.add(
-                GeneralUsageInfo(
-                    random.nextLong(1024 ) * 1024,
-                    random.nextLong(1024 ) * 1024,
-                    next2HourIntervalStart.toInstant().toEpochMilli(),
-                    when (next2HourIntervalStart.plusHours(3).isAfter(ZonedDateTime.now())){
-                        false -> next2HourIntervalStart.plusHours(2).toInstant().toEpochMilli()
-                        true -> ZonedDateTime.now().toInstant().toEpochMilli()
-                    }
+                UsageData(
+                    Timeframe(
+                        next2HourIntervalStart,
+                        when (next2HourIntervalStart.plusHours(3).isAfter(ZonedDateTime.now())) {
+                            false -> next2HourIntervalStart.plusHours(2)
+                            true -> ZonedDateTime.now()
+                        },
+                    ),
+                    random.nextLong(1024) * 1024,
+                    random.nextLong(1024) * 1024,
                 )
             )
             next2HourIntervalStart = next2HourIntervalStart.plusHours(2)
@@ -68,7 +84,7 @@ class UsageDetailsProcessorWithTestData(
 
 
     override fun getUsageGroupedByUID(
-        timeFrame: Pair<ZonedDateTime, ZonedDateTime>,
+        timeFrame: Timeframe,
         networkType: NetworkType
     ): List<AppUsageInfo> {
         val random = Random(3)
@@ -77,12 +93,14 @@ class UsageDetailsProcessorWithTestData(
             val androidPackage = packages[random.nextInt(packages.size)]
             r.add(
                 AppUsageInfo(
-                    androidPackage.applicationInfo.uid,
-                    androidPackage.packageName,
-                    androidPackage.packageName,
+                    AppInfo(
+                        androidPackage.applicationInfo.uid,
+                        androidPackage.packageName,
+                        androidPackage.packageName,
+                        packages[i].applicationInfo.loadIcon(packageManager)
+                    ),
                     random.nextLong(1024 * 1024) * 100,
                     random.nextLong(1024 * 1024) * 10,
-                    packages[i].applicationInfo.loadIcon(packageManager)
                 )
             )
         }

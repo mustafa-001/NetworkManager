@@ -19,6 +19,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.example.networkusage.ui.theme.NetworkUsageTheme
+import com.example.networkusage.usageDetailsProcessor.Timeframe
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 
@@ -26,18 +27,18 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun TimeFrameSelector(
     activity: ComponentActivity,
-    timeFrame: Pair<ZonedDateTime, ZonedDateTime>,
+    timeframe: Timeframe,
     mode: TimeFrameMode,
     onDismissRequest: () -> Unit,
-    onSubmitRequest: (Pair<ZonedDateTime, ZonedDateTime>) -> Unit
+    onSubmitRequest: (Timeframe) -> Unit
 ) {
     Dialog(onDismissRequest = onDismissRequest) {
-        val viewModelTime = timeFrame
+        val viewModelTime = timeframe
         var startTime = remember {
-            viewModelTime.first
+            viewModelTime.start
         }
         var endTime = remember {
-            viewModelTime.second
+            viewModelTime.end
         }
         Card(
             shape = RoundedCornerShape(12.dp)
@@ -70,7 +71,7 @@ fun TimeFrameSelector(
                     Spacer(Modifier.width(10.dp))
                     Button(modifier = Modifier.weight(1f), onClick = {
                         onDismissRequest()
-                        onSubmitRequest(Pair(startTime, endTime))
+                        onSubmitRequest(Timeframe(startTime, endTime))
                     }) {
                         Text(text = "Submit")
                     }
@@ -147,7 +148,7 @@ fun PreviewTimeFrameSelector() {
     NetworkUsageTheme {
         TimeFrameSelector(
             activity = LocalContext.current as ComponentActivity,
-            timeFrame = Pair(ZonedDateTime.now(), ZonedDateTime.now()),
+            timeframe = Timeframe(ZonedDateTime.now(), ZonedDateTime.now()),
             mode = TimeFrameMode.LAST_30_DAYS,
             onDismissRequest = {
                 Log.d(
@@ -158,7 +159,7 @@ fun PreviewTimeFrameSelector() {
             onSubmitRequest = { timeframe ->
                 Log.d(
                     "Network Usage",
-                    "Custom TimeFrameSelector submit clicked ${timeframe.first}, ${timeframe.second}"
+                    "Custom TimeFrameSelector submit clicked ${timeframe.start}, ${timeframe.end}"
                 )
             }
         )

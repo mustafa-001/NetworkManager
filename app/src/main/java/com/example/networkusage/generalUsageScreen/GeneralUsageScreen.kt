@@ -3,6 +3,8 @@ package com.example.networkusage
 import android.graphics.Bitmap
 import android.util.Log
 import androidx.compose.animation.*
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -30,8 +32,10 @@ import com.example.networkusage.generalUsageScreen.GeneralUsageScreenViewModel
 import com.example.networkusage.ui.theme.DownloadColor
 import com.example.networkusage.ui.theme.NetworkUsageTheme
 import com.example.networkusage.ui.theme.UploadColor
+import com.example.networkusage.usageDetailsProcessor.AppInfo
 import com.example.networkusage.usageDetailsProcessor.AppUsageInfo
 import com.example.networkusage.usageDetailsProcessor.NetworkType
+import com.example.networkusage.usageDetailsProcessor.Timeframe
 import com.example.networkusage.usagePlots.BarEntryXAxisLabelFormatter
 import com.example.networkusage.usagePlots.BarUsagePlot
 import java.time.ZonedDateTime
@@ -40,7 +44,7 @@ import java.util.*
 
 @Composable
 fun GeneralInfoHeader(
-    timeframe: LiveData<Pair<ZonedDateTime, ZonedDateTime>>,
+    timeframe: LiveData<Timeframe>,
     networkType: NetworkType,
     totalUsage: Pair<Long, Long>,
     modifier: Modifier = Modifier
@@ -54,14 +58,17 @@ fun GeneralInfoHeader(
             .padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 4.dp)
 
     ) {
-        val time: Pair<ZonedDateTime, ZonedDateTime> by timeframe.observeAsState(
-            Pair(
+        val time: Timeframe by timeframe.observeAsState(
+            Timeframe(
                 ZonedDateTime.now(), ZonedDateTime.now()
             )
         )
-        var visible by remember { mutableStateOf(false) }
-        AnimatedVisibility(visible = visible) {
-
+        var currentVisibility = remember {
+            MutableTransitionState(false)
+        }
+        currentVisibility.targetState = true
+        val transition = updateTransition(currentVisibility, label = "Visibility Transition")
+        AnimatedVisibility(visible = currentVisibility.currentState) {
             Column {
                 Row(
                     horizontalArrangement = Arrangement.Center, modifier = Modifier.padding(8.dp)
@@ -91,7 +98,7 @@ fun GeneralInfoHeader(
                     modifier = Modifier.padding(8.dp)
                 ) {
                     Text(
-                        time.first.formatWithReference(
+                        time.start.formatWithReference(
                             ZonedDateTime.now()
                         ),
                         style = TextStyle(fontSize = 14.sp),
@@ -99,7 +106,7 @@ fun GeneralInfoHeader(
                     )
                     Spacer(modifier = Modifier.weight(1f))
                     Text(
-                        time.second.formatWithReference(
+                        time.end.formatWithReference(
                             ZonedDateTime.now()
                         ),
                         style = TextStyle(fontSize = 14.sp),
@@ -108,7 +115,6 @@ fun GeneralInfoHeader(
                 }
             }
         }
-        LaunchedEffect(true, { visible = true })
 
     }
 }
@@ -117,13 +123,13 @@ fun GeneralInfoHeader(
 @Composable
 fun GeneralInfoHeaderPreview() {
     NetworkUsageTheme {
-        GeneralInfoHeader(MutableLiveData<Pair<ZonedDateTime, ZonedDateTime>>().apply {
+        GeneralInfoHeader(MutableLiveData<Timeframe>().apply {
             this.postValue(
-                Pair(
+                Timeframe(
                     ZonedDateTime.now().minusDays(1).minusHours(4), ZonedDateTime.now()
                 )
             )
-        } as LiveData<Pair<ZonedDateTime, ZonedDateTime>>, NetworkType.WIFI, Pair(420000, 23499))
+        } as LiveData<Timeframe>, NetworkType.WIFI, Pair(420000, 23499))
     }
 }
 
@@ -137,10 +143,11 @@ fun GeneralUsageScreen(
     val buckets by generalUsageScreenViewModel.usageByUID.observeAsState(
         generalUsageScreenViewModel.usageByUID.value!!
     )
-    val usageTotal: Pair<Long, Long> = buckets.let { it ->
-        Pair(it.map { it.rxBytes }.ifEmpty { listOf(0L) }.reduce { acc, rx -> acc + rx },
-            it.map { it.txBytes }.ifEmpty { listOf(0L) }.reduce { acc, tx -> acc + tx })
-    }
+//    val usageTotal: Pair<Long, Long> = buckets.let { it ->
+//        Pair(it.map { it.rxBytes }.ifEmpty { listOf(0L) }.reduce { acc, rx -> acc + rx },
+//            it.map { it.txBytes }.ifEmpty { listOf(0L) }.reduce { acc, tx -> acc + tx })
+//    }
+
     //Animation function to be set by plotting library.
     var animationCallback: () -> Unit by remember {
         mutableStateOf({ -> })
@@ -155,6 +162,27 @@ fun GeneralUsageScreen(
         0
     } else {
         buckets[0].rxBytes + buckets[0].txBytes
+
+    }
+    val timeframe = commonTopbarParametersViewModel.timeFrame.value!!
+
+    val barPlotIntervalListViewModel by remember(timeframe) {
+        mutableStateOf(
+            BarPlotIntervalListViewModel(
+                generalUsageScreenViewModel.usageDetailsManager.getUsageGroupedByTime(
+                    timeframe, networkType!!
+                ), timeframe
+            )
+        )
+    }
+
+    val usageTotal: Pair<Long, Long> = barPlotIntervalListViewModel.intervals.map {
+        Pair(it.rxBytes, it.txBytes)
+    }.reduce { acc: Pair<Long, Long>, interval ->
+        Pair(
+            acc.first + interval.first,
+            acc.second + interval.second
+        )
     }
 
     val onAppInfoRowClick: (Int) -> Unit = {
@@ -162,7 +190,7 @@ fun GeneralUsageScreen(
     }
 
     LazyColumn {
-        item {
+        item(key = usageTotal) {
             GeneralInfoHeader(
                 timeframe = commonTopbarParametersViewModel.timeFrame,
                 networkType = networkType!!,
@@ -170,20 +198,11 @@ fun GeneralUsageScreen(
             )
         }
 
-        val timeframe = commonTopbarParametersViewModel.timeFrame.value!!
         item {
-            val barPlotIntervalListViewModel by remember(timeframe) {
-                mutableStateOf(
-                    BarPlotIntervalListViewModel(
-                        generalUsageScreenViewModel.usageDetailsManager.getUsageGroupedByTime(
-                            timeframe, networkType!!
-                        ), timeframe
-                    )
-                )
-            }
+
             val intervals = when {
-                timeframe.first.plusDays(7)
-                    .isAfter(timeframe.second) -> barPlotIntervalListViewModel.intervals
+                timeframe.start.plusDays(7)
+                    .isAfter(timeframe.end) -> barPlotIntervalListViewModel.intervals
                 else -> barPlotIntervalListViewModel.groupedByDay()
 
             }
@@ -196,7 +215,7 @@ fun GeneralUsageScreen(
                 animationCallbackSetter = { animationCallback = it })
         }
 
-        items(items = buckets, key = { it.packageName }) {
+        items(items = buckets, key = { it.appInfo.packageName }) {
             UsageByPackageRow(usage = it, biggestUsage, onAppInfoRowClick)
         }
     }
@@ -208,39 +227,44 @@ fun GeneralUsageScreen(
 fun ApplicationUsageRowPreview() {
     NetworkUsageTheme {
         UsageByPackageRow(usage = AppUsageInfo(
-            100,
-            "Some App",
-            "com.package.someapp",
+            AppInfo(
+                100,
+                "Some App",
+                "com.package.someapp",
+                icon = null
+            ),
             rxBytes = 100003,
             txBytes = 14334,
-            icon = null
         ), 2000000, onClick = { _ -> })
     }
 }
 
 @Composable
 fun UsageByPackageRow(usage: AppUsageInfo, biggestUsage: Long, onClick: (Int) -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically,
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
         modifier =
         Modifier
             .clickable(onClick = {
-                onClick(usage.uid)
+                onClick(usage.appInfo.uid)
             })
             .padding(10.dp)
     ) {
         Icon(
-            when (usage.icon) {
+            when (usage.appInfo.icon) {
                 null -> Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
-                else -> usage.icon!!.toBitmap()
+                else -> usage.appInfo.icon!!.toBitmap()
             }.asImageBitmap(),
             "",
-            modifier = Modifier.size(40.dp).padding(4.dp),
+            modifier = Modifier
+                .size(40.dp)
+                .padding(4.dp),
             tint = androidx.compose.ui.graphics.Color.Unspecified
         )
         Spacer(Modifier.width(10.dp))
         Column {
             Text(
-                text = usage.name ?: (usage.packageName), maxLines = 1
+                text = usage.appInfo.name ?: (usage.appInfo.packageName), maxLines = 1
             )
             Row(
                 Modifier.fillMaxWidth()

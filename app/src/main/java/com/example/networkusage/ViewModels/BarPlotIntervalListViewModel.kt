@@ -1,47 +1,48 @@
 package com.example.networkusage.ViewModels
 
 import android.util.Log
-import com.example.networkusage.usagePlots.UsageInterval
-import com.example.networkusage.usageDetailsProcessor.GeneralUsageInfo
-import java.time.Instant
-import java.time.ZoneId
+import com.example.networkusage.usageDetailsProcessor.Timeframe
+import com.example.networkusage.usageDetailsProcessor.UsageData
+import com.example.networkusage.usagePlots.PlotDataPoint
+import com.example.networkusage.utils.toZonedDateTime
 import java.time.ZonedDateTime
 
 class BarPlotIntervalListViewModel(
-    buckets: List<GeneralUsageInfo>,
-    timeFrame: Pair<ZonedDateTime, ZonedDateTime>
+    buckets: List<UsageData>,
+    timeFrame: Timeframe
 ) {
-    val intervals: List<UsageInterval> = toIntervals(buckets).fillEmptyIntervals(timeFrame)
+    val intervals: List<PlotDataPoint> = toIntervals(buckets).fillEmptyIntervals(timeFrame)
 
-    fun groupedByDay(): List<UsageInterval> {
-
+    fun groupedByDay(): List<PlotDataPoint> {
         if (intervals.isEmpty()) {
             Log.d("NetworkUsage", "UsageInterval list given to groupByDay is empty.")
             return listOf(
-                UsageInterval(
+                PlotDataPoint(
                     0,
                     0,
-                    ZonedDateTime.now().withDayOfMonth(1),
-                    ZonedDateTime.now()
+                    ZonedDateTime.now().withDayOfMonth(1).toEpochSecond(),
+                    ZonedDateTime.now().toEpochSecond()
                 )
             )
         }
-        val newIntervalList = mutableListOf<UsageInterval>()
-        var currentDay = intervals.first().start
+        val newIntervalList = mutableListOf<PlotDataPoint>()
 
-        val groupedIntervals = intervals.groupBy { it.start.dayOfYear }
+        val groupedIntervals = intervals.groupBy { it.startSeconds.toZonedDateTime().dayOfYear }
             .values
         for (group in groupedIntervals) {
             val dailyRxBytes: Long = group.map { it.rxBytes }.reduce { acc, it -> acc + it }
             val dailyTxBytes: Long = group.map { it.txBytes }.reduce { acc, it -> acc + it }
             Log.d(
                 "NetworkUsage",
-                "Grouping ${group.size} elements belonging to day ${group.first().start} \t Rx: $dailyRxBytes, Tx: $dailyTxBytes"
+                "Grouping ${group.size} elements belonging to day ${group.first().startSeconds.toZonedDateTime()} \t" +
+                        " Rx: $dailyRxBytes, Tx: $dailyTxBytes"
             )
             newIntervalList.add(
-                UsageInterval(
+                PlotDataPoint(
                     dailyRxBytes,
-                    dailyTxBytes, group.first().start, group.last().end
+                    dailyTxBytes,
+                    group.first().startSeconds,
+                    group.last().endSeconds
                 )
             )
         }
@@ -49,44 +50,38 @@ class BarPlotIntervalListViewModel(
     }
 
     private fun toIntervals(
-        buckets: List<GeneralUsageInfo>,
-    ): MutableList<UsageInterval> {
-        val bucketsToAdd = mutableListOf<UsageInterval>()
+        buckets: List<UsageData>,
+    ): MutableList<PlotDataPoint> {
+        val bucketsToAdd = mutableListOf<PlotDataPoint>()
         for (b in buckets) {
             bucketsToAdd.add(
-                UsageInterval(
+                PlotDataPoint(
                     b.rxBytes,
                     b.txBytes,
-                    Instant.ofEpochMilli(b.startTimeStamp).atZone(ZoneId.systemDefault()),
-                    Instant.ofEpochMilli(b.endTimeStamp).atZone(ZoneId.systemDefault())
+                    b.time.start.toEpochSecond(),
+                    b.time.end.toEpochSecond()
                 )
             )
         }
-        return bucketsToAdd.apply { sortBy { it.start.toEpochSecond() } }
+        return bucketsToAdd.apply { sortBy { it.startSeconds } }
     }
 
-    private fun MutableList<UsageInterval>.fillEmptyIntervals(
-        timeFrame: Pair<ZonedDateTime, ZonedDateTime>
-    ): MutableList<UsageInterval> {
+    private fun MutableList<PlotDataPoint>.fillEmptyIntervals(
+        timeFrame: Timeframe
+    ): MutableList<PlotDataPoint> {
 
-        val timeStampDifference = 7200000000 //buckets[0].endTimeStamp - buckets[0].startTimeStamp
-        var firstTimeStamp = (timeFrame.first.toEpochSecond() * 1000)
+        val timeStampDifference = 7200000 //buckets[0].endTimeStamp - buckets[0].startTimeStamp
+        var firstTimeStamp = (timeFrame.start.toEpochSecond())
             .floorDiv(timeStampDifference) * timeStampDifference
-        val lastTimeStamp = (timeFrame.first.toEpochSecond() * 1000
+        val lastTimeStamp = (timeFrame.end.toEpochSecond()
             .div(timeStampDifference) + 1) * timeStampDifference
-        while (firstTimeStamp < lastTimeStamp) {
+        while (firstTimeStamp + timeStampDifference < lastTimeStamp) {
             this.add(
-                UsageInterval(
+                PlotDataPoint(
                     0,
                     0,
-
-                    Instant.ofEpochMilli(firstTimeStamp).atZone(ZoneId.systemDefault()),
-                    Instant.ofEpochMilli(firstTimeStamp + timeStampDifference)
-                        .atZone(ZoneId.systemDefault()),
-//                ZonedDateTime.ofEpochSecond(
-//                    firstTimeStamp / 1000 + timeStampDifference,
-//                    0,
-//                    ZoneOffset.UTC
+                    firstTimeStamp,
+                    firstTimeStamp + timeStampDifference
                 )
             )
             firstTimeStamp += timeStampDifference

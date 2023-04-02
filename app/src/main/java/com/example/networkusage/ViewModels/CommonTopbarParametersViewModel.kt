@@ -7,6 +7,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.example.networkusage.TimeFrameMode
 import com.example.networkusage.usageDetailsProcessor.NetworkType
+import com.example.networkusage.usageDetailsProcessor.Timeframe
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
@@ -23,8 +24,8 @@ class CommonTopbarParametersViewModel(private val sharedPref: SharedPreferences)
             }
         }
 
-    private val _timeFrame = MutableLiveData<Pair<ZonedDateTime, ZonedDateTime>>()
-    val timeFrame: LiveData<Pair<ZonedDateTime, ZonedDateTime>>
+    private val _timeFrame = MutableLiveData<Timeframe>()
+    val timeFrame: LiveData<Timeframe>
         get() = _timeFrame
 
     private val _networkType = MutableLiveData(
@@ -43,7 +44,7 @@ class CommonTopbarParametersViewModel(private val sharedPref: SharedPreferences)
             selectPredefinedTimeFrame(timeFrameMode)
         } else {
             setTime(
-                Pair(
+                Timeframe(
                     Instant.ofEpochSecond(
                         sharedPref.getLong(
                             "start_time",
@@ -83,7 +84,7 @@ class CommonTopbarParametersViewModel(private val sharedPref: SharedPreferences)
         }
     }
 
-    fun setTime(value: Pair<ZonedDateTime, ZonedDateTime>) {
+    fun setTime(value: Timeframe) {
         //compare value and timeFrame.value to avoid unnecessary updates
         if (value != timeFrame.value) {
             with(
@@ -91,17 +92,17 @@ class CommonTopbarParametersViewModel(private val sharedPref: SharedPreferences)
             ) {
                 putLong(
                     "start_time",
-                    value.first.toEpochSecond()
+                    value.start.toEpochSecond()
                 )
                 putLong(
                     "end_time",
-                    value.second.toEpochSecond()
+                    value.end.toEpochSecond()
                 )
                 apply()
             }
         }
         _timeFrame.value = value
-        Log.d("Network Usage", "timeFrame set to: ${value.first} and ${value.second}")
+        Log.d("Network Usage", "timeFrame set to: ${value.start} and ${value.end}")
     }
 
 
@@ -109,19 +110,19 @@ class CommonTopbarParametersViewModel(private val sharedPref: SharedPreferences)
         assert(timeFrameMode != TimeFrameMode.CUSTOM)
         setTime(
             when (timeFrameMode) {
-                TimeFrameMode.LAST_WEEK -> Pair(
+                TimeFrameMode.LAST_WEEK -> Timeframe(
                     ZonedDateTime.now().minusDays(7),
                     ZonedDateTime.now()
                 )
-                TimeFrameMode.LAST_30_DAYS -> Pair(
+                TimeFrameMode.LAST_30_DAYS -> Timeframe(
                     ZonedDateTime.now().minusDays(30),
                     ZonedDateTime.now()
                 )
-                TimeFrameMode.THIS_MONTH -> Pair(
+                TimeFrameMode.THIS_MONTH -> Timeframe(
                     ZonedDateTime.now().withDayOfMonth(1).withHour(0).withMinute(0),
                     ZonedDateTime.now()
                 )
-                TimeFrameMode.TODAY -> Pair(
+                TimeFrameMode.TODAY -> Timeframe(
                     ZonedDateTime.now().withHour(0).withMinute(0),
                     ZonedDateTime.now()
                 )

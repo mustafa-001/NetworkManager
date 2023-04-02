@@ -27,10 +27,7 @@ import androidx.navigation.navArgument
 import com.example.networkusage.ViewModels.CommonTopbarParametersViewModel
 import com.example.networkusage.generalUsageScreen.GeneralUsageScreenViewModel
 import com.example.networkusage.ui.theme.NetworkUsageTheme
-import com.example.networkusage.usageDetailsProcessor.NetworkType
-import com.example.networkusage.usageDetailsProcessor.UsageDetailsProcessor
-import com.example.networkusage.usageDetailsProcessor.UsageDetailsProcessorInterface
-import com.example.networkusage.usageDetailsProcessor.UsageDetailsProcessorWithTestData
+import com.example.networkusage.usageDetailsProcessor.*
 import java.time.ZonedDateTime
 import java.util.*
 
@@ -105,7 +102,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             navController = rememberNavController()
             val timeframe by commonTopbarParametersViewModel.timeFrame.observeAsState(
-                Pair(
+                Timeframe(
                     ZonedDateTime.now(),
                     ZonedDateTime.now()
                 )
@@ -126,7 +123,7 @@ class MainActivity : ComponentActivity() {
                                     it
                                 )
                             },
-                            timeFrame = timeframe,
+                            timeframe = timeframe,
                             onChangeTimeFrame = {
                                 commonTopbarParametersViewModel.setTime(it)
                             },

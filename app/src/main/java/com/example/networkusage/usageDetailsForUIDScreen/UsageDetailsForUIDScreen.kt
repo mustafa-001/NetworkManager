@@ -26,13 +26,12 @@ import com.example.networkusage.usageDetailsForUIDScreen.UsageDetailsForUIDViewM
 import com.example.networkusage.ui.theme.DownloadColor
 import com.example.networkusage.ui.theme.NetworkUsageTheme
 import com.example.networkusage.ui.theme.UploadColor
-import com.example.networkusage.usageDetailsProcessor.AppUsageInfo
-import com.example.networkusage.usageDetailsProcessor.GeneralUsageInfo
-import com.example.networkusage.usageDetailsProcessor.UsageDetailsProcessorInterface
+import com.example.networkusage.usageDetailsProcessor.*
 import com.example.networkusage.usagePlots.BarEntryXAxisLabelFormatter
 import com.example.networkusage.usagePlots.BarPlotTouchListener
 import com.example.networkusage.usagePlots.BarUsagePlot
 import com.example.networkusage.usagePlots.CumulativeUsageLinePlot
+import com.example.networkusage.utils.toZonedDateTime
 import com.google.accompanist.pager.ExperimentalPagerApi
 import com.google.accompanist.pager.HorizontalPager
 import java.time.Instant
@@ -63,43 +62,49 @@ fun UsageDetailsForUIDScreen(
         )
     }
 
-    val usageInfos: List<GeneralUsageInfo> by usageDetailsForUIDViewModel.usageByUIDGroupedByTime.observeAsState(
+    val appUsageInfo: AppDetailedUsageInfo by usageDetailsForUIDViewModel.usageByUIDGroupedByTime.observeAsState(
         usageDetailsForUIDViewModel.usageByUIDGroupedByTime.value!!
     )
 
     val barPlotTouchListener by remember {
         mutableStateOf(BarPlotTouchListener())
     }
+    //TODO: Move this logic to selectedInterval. We dont need seperate variable.
     val selectedIntervalIndex by barPlotTouchListener.intervalIndex.observeAsState(
         barPlotTouchListener.intervalIndex.value!!
     )
 
     //TODO: Move this variable and related logic to barPlotIntervalListViewModel.
-    val isNeedGrouping by remember(timeframe.first, timeframe.second) {
+    val isNeedGrouping by remember(timeframe.start, timeframe.end) {
         derivedStateOf {
-            !timeframe.first.plusDays(7)
-                .isAfter(timeframe.second)
+            !timeframe.start.plusDays(7)
+                .isAfter(timeframe.end)
         }
     }
 
-    val appsTotalUsageDuringTimeframe: AppUsageInfo by remember(usageInfos) {
+    val appsTotalUsageDuringTimeframe: UsageData by remember(appUsageInfo) {
         derivedStateOf {
-            appUsageInfo(uid, packageManager).also { appUsageInfo ->
-                usageInfos.forEach {
-                    appUsageInfo.rxBytes += it.rxBytes
-                    appUsageInfo.txBytes += it.txBytes
+            UsageData(
+                Timeframe(ZonedDateTime.now(), ZonedDateTime.now()),
+                appUsageInfo.usageData.map { it.rxBytes }.reduce { acc: Long, it ->
+                    acc + it
+                },
+                appUsageInfo.usageData.map { it.txBytes }.reduce { acc, it ->
+                    acc + it
                 }
-            }
+            )
+
         }
     }
 
+    //Dont recreate this viewmodel on every appUsageInfo change.Just update it.
     val barPlotIntervalListViewModel: BarPlotIntervalListViewModel by remember(
-        usageInfos,
+        appUsageInfo,
         timeframe
     ) {
         //Reset selected interval before redrawing this composable.
         barPlotTouchListener.onNothingSelected()
-        mutableStateOf(BarPlotIntervalListViewModel(usageInfos, timeframe))
+        mutableStateOf(BarPlotIntervalListViewModel(appUsageInfo.usageData, timeframe))
     }
 
     //Animation function to be set by plotting library.
@@ -107,7 +112,8 @@ fun UsageDetailsForUIDScreen(
         mutableStateOf({ -> })
     }
 
-    val barPlotIntervals by remember(isNeedGrouping) {
+    val barPlotIntervals by remember(barPlotIntervalListViewModel) {
+        //derivedStateOf is used to update barPlotIntervals only when isNeedGrouping changed.
         derivedStateOf {
             if (isNeedGrouping)
                 barPlotIntervalListViewModel.groupedByDay()
@@ -116,20 +122,29 @@ fun UsageDetailsForUIDScreen(
             }
         }
     }
-    LaunchedEffect(usageInfos) {
+    LaunchedEffect(appUsageInfo) {
         Log.d("Network Usage", "Timeframe changed, calling animationCallback")
         animationCallback()
     }
-    val selectedInterval =
+    val selectedInterval: Optional<Timeframe> =
         if (barPlotIntervals.isEmpty() || selectedIntervalIndex.isPresent.not()) {
             Log.d("Network Usage", "No interval has been selected.")
-            Optional.empty<Pair<ZonedDateTime, ZonedDateTime>>()
+            Optional.empty<Timeframe>()
         } else {
             try {
                 val usageInterval =
                     barPlotIntervals[selectedIntervalIndex.get()]
-                Log.d("Network Usage", "interval has been selected: ${usageInterval.start}")
-                Optional.of(Pair(usageInterval.start, usageInterval.end))
+                Log.d(
+                    "Network Usage",
+                    "selected interval: ${usageInterval.startSeconds.toZonedDateTime()} -" +
+                            " ${usageInterval.endSeconds.toZonedDateTime()}"
+                )
+                Optional.of(
+                    Timeframe(
+                        usageInterval.startSeconds.toZonedDateTime(),
+                        usageInterval.endSeconds.toZonedDateTime()
+                    )
+                )
             } catch (e: IndexOutOfBoundsException) {
                 Log.d(
                     "Network Usage",
@@ -139,7 +154,7 @@ fun UsageDetailsForUIDScreen(
                             "barPlotIntervals end: $barPlotIntervals[barPlotIntervals.size - 1].end \n" +
                             "selectedIntervalIndex: $selectedIntervalIndex"
                 )
-                Optional.empty<Pair<ZonedDateTime, ZonedDateTime>>()
+                Optional.empty<Timeframe>()
             }
         }
 
@@ -148,6 +163,7 @@ fun UsageDetailsForUIDScreen(
     ) {
         item {
             PackageUsageInfoHeader(
+                appInfo = appUsageInfo.appInfo,
                 usageInfo = appsTotalUsageDuringTimeframe,
                 modifier = Modifier.padding(start = 0.dp, end = 0.dp, top = 8.dp, bottom = 4.dp)
             )
@@ -157,9 +173,7 @@ fun UsageDetailsForUIDScreen(
             HorizontalPager(count = 2) { page ->
                 if (page == 0) {
                     val xAxisLabelFormatter by remember(barPlotIntervals) {
-                        derivedStateOf {
-                            BarEntryXAxisLabelFormatter({ -> barPlotIntervals })
-                        }
+                        mutableStateOf( BarEntryXAxisLabelFormatter { -> barPlotIntervals })
                     }
                     BarUsagePlot(
                         barPlotIntervals,
@@ -170,17 +184,19 @@ fun UsageDetailsForUIDScreen(
                     )
 
                 } else if (page == 1) {
-                    CumulativeUsageLinePlot(barPlotIntervalListViewModel.intervals)
+                    CumulativeUsageLinePlot(barPlotIntervals)
                 }
             }
         }
         val timeFormatter = DateTimeFormatter.ofPattern("dd.MM.YY-HH.mm")
-        for (bucket in usageInfos.sortedBy { it.rxBytes + it.txBytes }.reversed()) {
+        for (bucket in appUsageInfo.usageData.sortedBy { it.rxBytes + it.txBytes }.reversed()) {
             if (selectedInterval.isPresent.not() ||
-                (bucket.endTimeStamp / 1000 <= selectedInterval.get().second.toEpochSecond()
-                        && bucket.startTimeStamp / 1000 >= selectedInterval.get().first.toEpochSecond())
+                (bucket.time.start.isBefore(selectedInterval.get().end)
+                        && bucket.time.start.isAfter(selectedInterval.get().start)
+                        || bucket.time.end.isBefore(selectedInterval.get().end) &&
+                        bucket.time.end.isAfter(selectedInterval.get().start))
             ) {
-                item(key = bucket.startTimeStamp) {
+                item {
                     BucketDetailsRow(
                         bucket,
                         timeFormatter,
@@ -193,34 +209,31 @@ fun UsageDetailsForUIDScreen(
     }
 }
 
-private fun appUsageInfo(
+private fun getAppInfo(
     uid: Int,
     packageManager: PackageManager
 ) = when (uid) {
     NetworkStats.Bucket.UID_ALL -> {
-        AppUsageInfo(
+        AppInfo(
             uid,
             "All",
             "All",
-            0, 0,
             null
         )
     }
     NetworkStats.Bucket.UID_TETHERING -> {
-        AppUsageInfo(
+        AppInfo(
             uid,
             "Tethering",
             "Tethering",
-            0, 0,
             null
         )
     }
     NetworkStats.Bucket.UID_REMOVED -> {
-        AppUsageInfo(
+        AppInfo(
             uid,
             "Removed",
             "Removed",
-            0, 0,
             null
         )
     }
@@ -229,11 +242,10 @@ private fun appUsageInfo(
             packageManager.getPackagesForUid(uid)!![0],
             PackageManager.GET_META_DATA
         )
-        AppUsageInfo(
+        AppInfo(
             uid,
             packageManager.getApplicationLabel(p.applicationInfo).toString(),
             p.packageName,
-            0, 0,
             p.applicationInfo.loadIcon(packageManager)
         )
     }
@@ -241,7 +253,7 @@ private fun appUsageInfo(
 
 @Composable
 fun BucketDetailsRow(
-    bucket: GeneralUsageInfo,
+    bucket: UsageData,
     timeFormatter: DateTimeFormatter,
     modifier: Modifier = Modifier
 ) {
@@ -256,10 +268,8 @@ fun BucketDetailsRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                val start = Instant.ofEpochMilli(bucket.startTimeStamp)
-                    .atZone(ZoneId.systemDefault())
-                val end = Instant.ofEpochMilli(bucket.endTimeStamp)
-                    .atZone(ZoneId.systemDefault())
+                val start = bucket.time.start
+                val end = bucket.time.end
                 if (start.toLocalDate().dayOfYear != end.toLocalDate().dayOfYear) {
                     Row(
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -331,11 +341,13 @@ fun BucketDetailsRow(
 @Preview(showBackground = true)
 @Composable
 fun IntervalUsageInfoPreview() {
-    val bucket = GeneralUsageInfo(
+    val bucket = UsageData(
+        Timeframe(
+            ZonedDateTime.now().minusDays(2),
+            ZonedDateTime.now()
+        ),
         10000,
         100000,
-        ZonedDateTime.now().minusDays(2).toEpochSecond(),
-        ZonedDateTime.now().toEpochSecond()
     )
     val timeFormatter = DateTimeFormatter.ofPattern("dd.MM.YY-HH.mm")
     NetworkUsageTheme() {
@@ -346,7 +358,8 @@ fun IntervalUsageInfoPreview() {
 
 @Composable
 fun PackageUsageInfoHeader(
-    usageInfo: AppUsageInfo,
+    appInfo: AppInfo,
+    usageInfo: UsageData,
     modifier: Modifier = Modifier
 ) {
     var visible by remember { mutableStateOf(false) }
@@ -361,13 +374,13 @@ fun PackageUsageInfoHeader(
                 verticalAlignment = CenterVertically, modifier = Modifier
                     .padding(8.dp)
             ) {
-                if (usageInfo.icon == null) {
+                if (appInfo.icon == null) {
                     val vector = ImageVector.vectorResource(id = R.drawable.ic_baseline_settings_24)
                     val painter = rememberVectorPainter(image = vector)
                     Icon(painter, "")
                 } else {
                     Icon(
-                        usageInfo.icon!!.toBitmap().asImageBitmap(),
+                        appInfo.icon!!.toBitmap().asImageBitmap(),
                         "",
                         modifier = Modifier.size(40.dp),
                         tint = Color.Unspecified
@@ -376,7 +389,7 @@ fun PackageUsageInfoHeader(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     modifier = Modifier.width(IntrinsicSize.Max),
-                    text = usageInfo.name ?: (usageInfo.packageName), maxLines = 1
+                    text = appInfo.name ?: (appInfo.packageName), maxLines = 1
                 )
                 Spacer(
                     modifier = Modifier
@@ -398,13 +411,19 @@ fun PackageUsageInfoHeader(
 fun PackageInfoPreview() {
     NetworkUsageTheme() {
         PackageUsageInfoHeader(
-            usageInfo = AppUsageInfo(
+            AppInfo(
                 100,
-                "Android",
                 "com.android",
+                "Android",
+                null
+            ),
+            usageInfo = UsageData(
+                time = Timeframe(
+                    ZonedDateTime.now(),
+                    ZonedDateTime.now()
+                ),
                 txBytes = 100000,
                 rxBytes = 10000000,
-                null
             )
         )
     }
