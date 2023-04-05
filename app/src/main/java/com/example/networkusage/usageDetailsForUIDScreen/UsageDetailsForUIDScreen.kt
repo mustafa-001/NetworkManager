@@ -20,7 +20,7 @@ import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
-import com.example.networkusage.ViewModels.BarPlotIntervalListViewModel
+import com.example.networkusage.ViewModels.BarPlotState
 import com.example.networkusage.ViewModels.CommonTopbarParametersViewModel
 import com.example.networkusage.usageDetailsForUIDScreen.UsageDetailsForUIDViewModel
 import com.example.networkusage.ui.theme.DownloadColor
@@ -34,8 +34,6 @@ import com.example.networkusage.usagePlots.CumulativeUsageLinePlot
 import com.example.networkusage.utils.toZonedDateTime
 import com.google.accompanist.pager.ExperimentalPagerApi
 import com.google.accompanist.pager.HorizontalPager
-import java.time.Instant
-import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.*
@@ -74,13 +72,6 @@ fun UsageDetailsForUIDScreen(
         barPlotTouchListener.intervalIndex.value!!
     )
 
-    //TODO: Move this variable and related logic to barPlotIntervalListViewModel.
-    val isNeedGrouping by remember(timeframe.start, timeframe.end) {
-        derivedStateOf {
-            !timeframe.start.plusDays(7)
-                .isAfter(timeframe.end)
-        }
-    }
 
     val appsTotalUsageDuringTimeframe: UsageData by remember(appUsageInfo) {
         derivedStateOf {
@@ -98,13 +89,13 @@ fun UsageDetailsForUIDScreen(
     }
 
     //Dont recreate this viewmodel on every appUsageInfo change.Just update it.
-    val barPlotIntervalListViewModel: BarPlotIntervalListViewModel by remember(
+    val barPlotState: BarPlotState by remember(
         appUsageInfo,
         timeframe
     ) {
         //Reset selected interval before redrawing this composable.
         barPlotTouchListener.onNothingSelected()
-        mutableStateOf(BarPlotIntervalListViewModel(appUsageInfo.usageData, timeframe))
+        mutableStateOf(BarPlotState(appUsageInfo.usageData, timeframe))
     }
 
     //Animation function to be set by plotting library.
@@ -112,16 +103,20 @@ fun UsageDetailsForUIDScreen(
         mutableStateOf({ -> })
     }
 
-    val barPlotIntervals by remember(barPlotIntervalListViewModel) {
+    val barPlotIntervals by remember(barPlotState) {
         //derivedStateOf is used to update barPlotIntervals only when isNeedGrouping changed.
+        val isNeedGrouping =
+            !timeframe.start.plusDays(2)
+                .isAfter(timeframe.end)
         derivedStateOf {
             if (isNeedGrouping)
-                barPlotIntervalListViewModel.groupedByDay()
+                barPlotState.groupedByDay()
             else {
-                barPlotIntervalListViewModel.intervals
+                barPlotState.intervals
             }
         }
     }
+
     LaunchedEffect(appUsageInfo) {
         Log.d("Network Usage", "Timeframe changed, calling animationCallback")
         animationCallback()
@@ -173,7 +168,7 @@ fun UsageDetailsForUIDScreen(
             HorizontalPager(count = 2) { page ->
                 if (page == 0) {
                     val xAxisLabelFormatter by remember(barPlotIntervals) {
-                        mutableStateOf( BarEntryXAxisLabelFormatter { -> barPlotIntervals })
+                        mutableStateOf(BarEntryXAxisLabelFormatter { -> barPlotIntervals })
                     }
                     BarUsagePlot(
                         barPlotIntervals,

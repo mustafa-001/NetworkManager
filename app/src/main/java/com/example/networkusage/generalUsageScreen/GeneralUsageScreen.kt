@@ -1,8 +1,8 @@
 package com.example.networkusage
 
-import android.graphics.Bitmap
 import android.util.Log
-import androidx.compose.animation.*
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -15,27 +15,20 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.graphics.drawable.toBitmap
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import androidx.navigation.NavController
-import com.example.networkusage.ViewModels.BarPlotIntervalListViewModel
+import com.example.networkusage.ViewModels.BarPlotState
 import com.example.networkusage.ViewModels.CommonTopbarParametersViewModel
 import com.example.networkusage.generalUsageScreen.GeneralUsageScreenViewModel
 import com.example.networkusage.ui.theme.DownloadColor
 import com.example.networkusage.ui.theme.NetworkUsageTheme
 import com.example.networkusage.ui.theme.UploadColor
-import com.example.networkusage.usageDetailsProcessor.AppInfo
-import com.example.networkusage.usageDetailsProcessor.AppUsageInfo
-import com.example.networkusage.usageDetailsProcessor.NetworkType
-import com.example.networkusage.usageDetailsProcessor.Timeframe
+import com.example.networkusage.usageDetailsProcessor.*
 import com.example.networkusage.usagePlots.BarEntryXAxisLabelFormatter
 import com.example.networkusage.usagePlots.BarUsagePlot
 import java.time.ZonedDateTime
@@ -44,9 +37,8 @@ import java.util.*
 
 @Composable
 fun GeneralInfoHeader(
-    timeframe: LiveData<Timeframe>,
     networkType: NetworkType,
-    totalUsage: Pair<Long, Long>,
+    totalUsage: UsageData,
     modifier: Modifier = Modifier
 ) {
     ElevatedCard(
@@ -58,11 +50,7 @@ fun GeneralInfoHeader(
             .padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 4.dp)
 
     ) {
-        val time: Timeframe by timeframe.observeAsState(
-            Timeframe(
-                ZonedDateTime.now(), ZonedDateTime.now()
-            )
-        )
+        val time: Timeframe = totalUsage.time
         var currentVisibility = remember {
             MutableTransitionState(false)
         }
@@ -74,7 +62,7 @@ fun GeneralInfoHeader(
                     horizontalArrangement = Arrangement.Center, modifier = Modifier.padding(8.dp)
                 ) {
                     Text(
-                        byteToStringRepresentation(totalUsage.first),
+                        byteToStringRepresentation(totalUsage.rxBytes),
                         modifier = Modifier.weight(1f),
                         textAlign = TextAlign.End,
                         fontSize = 14.sp
@@ -88,7 +76,7 @@ fun GeneralInfoHeader(
                         contentDescription = ""
                     )
                     Text(
-                        byteToStringRepresentation(totalUsage.second),
+                        byteToStringRepresentation(totalUsage.txBytes),
                         Modifier.weight(1f),
                         fontSize = 14.sp
                     )
@@ -123,13 +111,16 @@ fun GeneralInfoHeader(
 @Composable
 fun GeneralInfoHeaderPreview() {
     NetworkUsageTheme {
-        GeneralInfoHeader(MutableLiveData<Timeframe>().apply {
-            this.postValue(
+        GeneralInfoHeader(
+            NetworkType.WIFI,
+            UsageData(
                 Timeframe(
                     ZonedDateTime.now().minusDays(1).minusHours(4), ZonedDateTime.now()
-                )
+                ),
+                420000,
+                23499
             )
-        } as LiveData<Timeframe>, NetworkType.WIFI, Pair(420000, 23499))
+        )
     }
 }
 
@@ -143,10 +134,6 @@ fun GeneralUsageScreen(
     val buckets by generalUsageScreenViewModel.usageByUID.observeAsState(
         generalUsageScreenViewModel.usageByUID.value!!
     )
-//    val usageTotal: Pair<Long, Long> = buckets.let { it ->
-//        Pair(it.map { it.rxBytes }.ifEmpty { listOf(0L) }.reduce { acc, rx -> acc + rx },
-//            it.map { it.txBytes }.ifEmpty { listOf(0L) }.reduce { acc, tx -> acc + tx })
-//    }
 
     //Animation function to be set by plotting library.
     var animationCallback: () -> Unit by remember {
@@ -158,17 +145,11 @@ fun GeneralUsageScreen(
     }
 
     val networkType by commonTopbarParametersViewModel.networkType.observeAsState()
-    val biggestUsage = if (buckets.isEmpty()) {
-        0
-    } else {
-        buckets[0].rxBytes + buckets[0].txBytes
-
-    }
     val timeframe = commonTopbarParametersViewModel.timeFrame.value!!
 
-    val barPlotIntervalListViewModel by remember(timeframe) {
+    val barPlotState by remember(timeframe) {
         mutableStateOf(
-            BarPlotIntervalListViewModel(
+            BarPlotState(
                 generalUsageScreenViewModel.usageDetailsManager.getUsageGroupedByTime(
                     timeframe, networkType!!
                 ), timeframe
@@ -176,36 +157,24 @@ fun GeneralUsageScreen(
         )
     }
 
-    val usageTotal: Pair<Long, Long> = barPlotIntervalListViewModel.intervals.map {
-        Pair(it.rxBytes, it.txBytes)
-    }.reduce { acc: Pair<Long, Long>, interval ->
-        Pair(
-            acc.first + interval.first,
-            acc.second + interval.second
-        )
-    }
-
     val onAppInfoRowClick: (Int) -> Unit = {
         navController.navigate("details/${it}")
     }
 
-    LazyColumn {
-        item(key = usageTotal) {
+    LazyColumn() {
+        item {
             GeneralInfoHeader(
-                timeframe = commonTopbarParametersViewModel.timeFrame,
                 networkType = networkType!!,
-                totalUsage = usageTotal
+                totalUsage = barPlotState.usageTotal
             )
         }
 
+        val intervals = when {
+            timeframe.start.plusDays(2)
+                .isAfter(timeframe.end) -> barPlotState.intervals
+            else -> barPlotState.groupedByDay()
+        }
         item {
-
-            val intervals = when {
-                timeframe.start.plusDays(7)
-                    .isAfter(timeframe.end) -> barPlotIntervalListViewModel.intervals
-                else -> barPlotIntervalListViewModel.groupedByDay()
-
-            }
             BarUsagePlot(intervals = intervals,
                 Optional.empty(),
                 BarEntryXAxisLabelFormatter { -> intervals },
@@ -214,9 +183,8 @@ fun GeneralUsageScreen(
                 ),
                 animationCallbackSetter = { animationCallback = it })
         }
-
-        items(items = buckets, key = { it.appInfo.packageName }) {
-            UsageByPackageRow(usage = it, biggestUsage, onAppInfoRowClick)
+        items(buckets) {
+            UsageByPackageRow(usage = it, barPlotState.biggestUsage, onAppInfoRowClick)
         }
     }
 }
@@ -251,10 +219,7 @@ fun UsageByPackageRow(usage: AppUsageInfo, biggestUsage: Long, onClick: (Int) ->
             .padding(10.dp)
     ) {
         Icon(
-            when (usage.appInfo.icon) {
-                null -> Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
-                else -> usage.appInfo.icon!!.toBitmap()
-            }.asImageBitmap(),
+            usage.appInfo.iconBitmap!!,
             "",
             modifier = Modifier
                 .size(40.dp)

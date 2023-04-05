@@ -7,11 +7,23 @@ import com.example.networkusage.usagePlots.PlotDataPoint
 import com.example.networkusage.utils.toZonedDateTime
 import java.time.ZonedDateTime
 
-class BarPlotIntervalListViewModel(
+class BarPlotState(
     buckets: List<UsageData>,
-    timeFrame: Timeframe
+    private val timeFrame: Timeframe
 ) {
     val intervals: List<PlotDataPoint> = toIntervals(buckets).fillEmptyIntervals(timeFrame)
+
+    private val totalRx: Long =
+        intervals.fold(0L) { acc, interval -> acc + interval.rxBytes }
+    private val totalTx =
+        intervals.fold(0L) { acc, interval -> acc + interval.txBytes }
+    val usageTotal: UsageData = UsageData(timeFrame, totalTx, totalRx)
+
+    val biggestUsage = if (buckets.isEmpty()) {
+        0
+    } else {
+        buckets.maxOf { it.rxBytes + it.txBytes }
+    }
 
     fun groupedByDay(): List<PlotDataPoint> {
         if (intervals.isEmpty()) {
