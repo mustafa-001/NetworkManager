@@ -68,10 +68,14 @@ fun BarUsagePlot(
             val txEntries = mutableListOf<BarEntry>()
 
             intervals.mapIndexed { index, it ->
+                val rxBytes: Float = when (it.rxBytes){
+                    0L -> intervals.map { it.rxBytes }.average().toFloat()/ 10
+                    else -> it.rxBytes.toFloat()
+                }
                 rxEntries.add(
                     BarEntry(
                         index.toFloat(),
-                        it.rxBytes.toFloat()
+                        rxBytes
                     )
                 )
                 txEntries.add(

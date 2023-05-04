@@ -58,6 +58,19 @@ class BarPlotState(
                 )
             )
         }
+        //pad newIntervalList to 7 elements from start
+        while (newIntervalList.size < 7) {
+            newIntervalList.add(
+                0,
+                PlotDataPoint(
+                    0,
+                    0,
+                    newIntervalList.first().startSeconds - 24 * 60 * 60,
+                    newIntervalList.first().endSeconds - 24 * 60 * 60
+                )
+            )
+        }
+
         return newIntervalList
     }
 
